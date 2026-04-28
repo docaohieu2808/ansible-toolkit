@@ -1,0 +1,40 @@
+# ============================================================
+# Ansible Toolkit - .gitignore
+# ============================================================
+# This is the PUBLIC toolkit. Never commit real fleet data.
+
+# Real inventories (only _examples allowed)
+inventories/personal/
+inventories/client-*/
+inventories/staging/
+inventories/production/
+inventories/development/
+
+# Secrets
+*.vault
+.vault_pass*
+*.env
+.env.local
+
+# Ansible runtime
+*.retry
+/tmp/ansible_facts_cache/
+/tmp/ansible.log
+fact_cache/
+.ansible/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Backup
+*.bak
+*.bak-*

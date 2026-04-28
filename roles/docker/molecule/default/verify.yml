@@ -1,0 +1,42 @@
+---
+- name: Verify docker role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Check docker command is available
+      command: which docker
+      register: docker_which
+      changed_when: false
+      failed_when: docker_which.rc != 0
+
+    - name: Check docker version
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: docker_version.rc != 0
+
+    - name: Check docker service is enabled
+      command: systemctl is-enabled docker
+      register: docker_enabled
+      changed_when: false
+      failed_when: docker_enabled.stdout != 'enabled'
+
+    - name: Check docker service is running
+      command: systemctl is-active docker
+      register: docker_active
+      changed_when: false
+      failed_when: docker_active.stdout != 'active'
+
+    - name: Check docker daemon config exists
+      stat:
+        path: /etc/docker/daemon.json
+      register: daemon_config
+      failed_when: not daemon_config.stat.exists
+
+    - name: Check docker group exists
+      getent:
+        database: group
+        key: docker
+      register: docker_group

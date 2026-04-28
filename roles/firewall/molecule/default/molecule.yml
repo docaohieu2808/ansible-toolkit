@@ -1,0 +1,34 @@
+---
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+  - name: instance
+    image: geerlingguy/docker-debian12-ansible
+    pre_build_image: true
+    privileged: true
+    command: /lib/systemd/systemd
+    tty: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    capabilities:
+      - NET_ADMIN
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    ANSIBLE_ROLES_PATH: "${MOLECULE_PROJECT_DIRECTORY}/.."
+  inventory:
+    host_vars:
+      instance:
+        ansible_user: root
+
+verifier:
+  name: ansible

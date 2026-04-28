@@ -1,0 +1,8 @@
+# Python dependencies for control node
+ansible>=2.14
+ansible-lint>=6.0
+jmespath>=1.0
+netaddr>=0.10
+passlib>=1.7
+boto3>=1.28
+google-auth>=2.20

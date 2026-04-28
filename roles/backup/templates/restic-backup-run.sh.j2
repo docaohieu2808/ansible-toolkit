@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# =============================================================================
+# Restic Backup Script for {{ inventory_hostname }}
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# =============================================================================
+set -euo pipefail
+
+LOGFILE="/var/log/restic-backup.log"
+TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+log() { echo "[$TIMESTAMP] $*" | tee -a "$LOGFILE"; }
+
+# Load credentials
+set -a
+source {{ restic_config_dir }}/env
+set +a
+
+log "Starting restic backup on {{ inventory_hostname }}"
+
+# Run backup
+restic --cache-dir {{ restic_cache_dir }} backup \
+  --exclude-file {{ restic_config_dir }}/excludes.txt \
+  --tag ansible \
+  --tag {{ inventory_hostname }} \
+{% for src in backup_sources %}
+  {{ src }} \
+{% endfor %}
+  && log "Backup completed successfully" \
+  || { log "ERROR: Backup failed"; exit 1; }
+
+# Apply retention policy
+log "Applying retention policy..."
+restic --cache-dir {{ restic_cache_dir }} forget \
+  --keep-daily {{ backup_keep_daily }} \
+  --keep-weekly {{ backup_keep_weekly }} \
+  --keep-monthly {{ backup_keep_monthly }} \
+  --prune \
+  && log "Retention policy applied" \
+  || { log "ERROR: Forget/prune failed"; exit 1; }
+
+log "Backup job finished successfully"

@@ -1,0 +1,170 @@
+# =============================================================================
+# Playbook: Deploy Docker
+# =============================================================================
+# Install Docker CE and Docker Compose on target servers
+# Usage: ansible-playbook -i inventory/production.yml playbooks/deploy-docker.yml
+# =============================================================================
+
+---
+- name: Deploy Docker
+  hosts: docker_hosts
+  become: true
+  gather_facts: true
+
+  vars:
+    docker_apt_repository: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    docker_users:
+      - root
+
+  tasks:
+    # =========================================================================
+    # Prerequisites
+    # =========================================================================
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+          - python3-pip
+        state: present
+        update_cache: yes
+
+    # =========================================================================
+    # Add Docker Repository
+    # =========================================================================
+    - name: Create keyrings directory
+      file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: '0755'
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "{{ docker_apt_repository }}"
+        state: present
+        filename: docker
+
+    # =========================================================================
+    # Install Docker
+    # =========================================================================
+    - name: Update apt cache after adding Docker repo
+      apt:
+        update_cache: yes
+
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+          - docker-buildx-plugin
+          - docker-compose-plugin
+        state: present
+
+    - name: Ensure Docker service is started and enabled
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    # =========================================================================
+    # Configure Docker Daemon
+    # =========================================================================
+    - name: Create Docker daemon configuration directory
+      file:
+        path: /etc/docker
+        state: directory
+        mode: '0755'
+
+    - name: Configure Docker daemon
+      copy:
+        content: |
+          {
+            "storage-driver": "overlay2",
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "100m",
+              "max-file": "5"
+            },
+            "default-address-pools": [
+              {
+                "base": "172.17.0.0/12",
+                "size": 24
+              }
+            ],
+            "live-restore": true,
+            "userland-proxy": false
+          }
+        dest: /etc/docker/daemon.json
+        mode: '0644'
+      notify: Restart Docker
+
+    # =========================================================================
+    # Add Users to Docker Group
+    # =========================================================================
+    - name: Add users to docker group
+      user:
+        name: "{{ item }}"
+        groups: docker
+        append: yes
+      loop: "{{ docker_users }}"
+      when: docker_users is defined
+
+    # =========================================================================
+    # Create Common Networks
+    # =========================================================================
+    - name: Create traefik-network
+      docker_network:
+        name: traefik-network
+        state: present
+
+    # =========================================================================
+    # Install Docker Compose (Standalone - Optional)
+    # =========================================================================
+    - name: Check if docker-compose standalone is installed
+      command: docker-compose version
+      register: dc_standalone
+      changed_when: false
+      failed_when: false
+
+    - name: Download Docker Compose standalone
+      get_url:
+        url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version | default('v2.24.0') }}/docker-compose-linux-{{ ansible_architecture }}"
+        dest: /usr/local/bin/docker-compose
+        mode: '0755'
+      when: dc_standalone.rc != 0
+
+    # =========================================================================
+    # Verify Installation
+    # =========================================================================
+    - name: Verify Docker installation
+      command: docker --version
+      register: docker_version_output
+      changed_when: false
+
+    - name: Display Docker version
+      debug:
+        msg: "{{ docker_version_output.stdout }}"
+
+    - name: Verify Docker Compose installation
+      command: docker compose version
+      register: compose_version_output
+      changed_when: false
+
+    - name: Display Docker Compose version
+      debug:
+        msg: "{{ compose_version_output.stdout }}"
+
+  handlers:
+    - name: Restart Docker
+      systemd:
+        name: docker
+        state: restarted

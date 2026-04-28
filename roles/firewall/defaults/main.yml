@@ -1,0 +1,36 @@
+# =============================================================================
+# Role: Firewall - Default Variables (UFW + iptables)
+# =============================================================================
+
+---
+firewall_backend: ufw          # ufw or iptables
+
+# UFW settings
+ufw_enabled: true
+ufw_reset_on_apply: false      # WARNING: resets all existing rules if true
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+ufw_default_routed: deny
+ufw_logging: "low"             # off, low, medium, high, full
+
+# Base allowed ports (applied to all hosts)
+ufw_base_rules:
+  - { port: "22", proto: tcp, comment: "SSH" }
+  - { port: "80", proto: tcp, comment: "HTTP" }
+  - { port: "443", proto: tcp, comment: "HTTPS" }
+
+# Additional host-specific rules (set per group_vars/host_vars)
+ufw_extra_rules: []
+# Example:
+# ufw_extra_rules:
+#   - { port: "9100", proto: tcp, src: "10.0.0.0/8", comment: "node_exporter" }
+#   - { port: "51820", proto: udp, comment: "WireGuard" }
+
+# Allowed source networks (trusted, unrestricted)
+ufw_trusted_networks: []
+# Example:
+# ufw_trusted_networks:
+#   - "10.0.0.0/8"
+
+# Docker iptables integration (Docker bypasses UFW by default)
+ufw_docker_fix: true           # Apply Docker UFW fix

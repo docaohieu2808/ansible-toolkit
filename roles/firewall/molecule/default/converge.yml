@@ -1,0 +1,32 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    firewall_backend: ufw
+    ufw_reset_on_apply: false
+    ufw_default_incoming: deny
+    ufw_default_outgoing: allow
+    ufw_default_routed: deny
+    ufw_logging: "low"
+    ufw_base_rules:
+      - { port: "22", proto: tcp, comment: "SSH" }
+      - { port: "80", proto: tcp, comment: "HTTP" }
+      - { port: "443", proto: tcp, comment: "HTTPS" }
+    ufw_extra_rules: []
+    ufw_trusted_networks: []
+    ufw_docker_fix: false
+
+  pre_tasks:
+    - name: Install iptables (required by UFW in containers)
+      apt:
+        name:
+          - iptables
+          - ufw
+        state: present
+        update_cache: yes
+
+  roles:
+    - role: firewall

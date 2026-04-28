@@ -1,0 +1,79 @@
+# =============================================================================
+# Role: Backup - Tasks (restic to S3/GCS)
+# =============================================================================
+
+---
+- name: Download restic binary
+  get_url:
+    url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_amd64.bz2"
+    dest: "/tmp/restic_{{ restic_version }}.bz2"
+    mode: '0644'
+
+- name: Decompress restic binary
+  shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}.bz2 && mv /tmp/restic_{{ restic_version }} {{ restic_install_dir }}/restic && chmod 0755 {{ restic_install_dir }}/restic"
+  args:
+    creates: "{{ restic_install_dir }}/restic"
+
+- name: Create restic config and cache directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0700'
+  loop:
+    - "{{ restic_config_dir }}"
+    - "{{ restic_cache_dir }}"
+
+- name: Deploy restic environment file (credentials)
+  template:
+    src: restic-environment-credentials.env.j2
+    dest: "{{ restic_config_dir }}/env"
+    owner: root
+    group: root
+    mode: '0600'
+
+- name: Deploy restic excludes file
+  template:
+    src: restic-backup-excludes.txt.j2
+    dest: "{{ restic_config_dir }}/excludes.txt"
+    owner: root
+    group: root
+    mode: '0640'
+
+- name: Initialize restic repository (idempotent)
+  shell: |
+    set -a; source {{ restic_config_dir }}/env; set +a
+    restic --cache-dir {{ restic_cache_dir }} snapshots 2>/dev/null || \
+    restic --cache-dir {{ restic_cache_dir }} init
+  register: restic_init
+  changed_when: "'created restic repository' in restic_init.stdout"
+
+- name: Deploy restic backup script
+  template:
+    src: restic-backup-run.sh.j2
+    dest: /usr/local/bin/restic-backup
+    owner: root
+    group: root
+    mode: '0750'
+
+- name: Deploy restic backup systemd service unit
+  template:
+    src: restic-backup-systemd.service.j2
+    dest: /etc/systemd/system/restic-backup.service
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Deploy restic backup systemd timer unit
+  template:
+    src: restic-backup-systemd.timer.j2
+    dest: /etc/systemd/system/restic-backup.timer
+    mode: '0644'
+  notify: Reload systemd
+
+- name: Enable and start restic backup timer
+  systemd:
+    name: restic-backup.timer
+    state: started
+    enabled: yes
+    daemon_reload: yes

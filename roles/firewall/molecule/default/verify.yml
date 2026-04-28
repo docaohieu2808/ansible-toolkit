@@ -1,0 +1,40 @@
+---
+- name: Verify firewall role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Check ufw is installed
+      package_facts:
+        manager: apt
+
+    - name: Assert ufw package is present
+      assert:
+        that: "'ufw' in ansible_facts.packages"
+        fail_msg: "ufw is not installed"
+
+    - name: Check ufw status
+      command: ufw status
+      register: ufw_status
+      changed_when: false
+
+    - name: Assert ufw is active
+      assert:
+        that: "'Status: active' in ufw_status.stdout"
+        fail_msg: "UFW is not active"
+
+    - name: Check SSH port 22 is allowed in ufw rules
+      assert:
+        that: "'22' in ufw_status.stdout"
+        fail_msg: "SSH port 22 is not open in UFW"
+
+    - name: Check HTTP port 80 is allowed in ufw rules
+      assert:
+        that: "'80' in ufw_status.stdout"
+        fail_msg: "HTTP port 80 is not open in UFW"
+
+    - name: Check HTTPS port 443 is allowed in ufw rules
+      assert:
+        that: "'443' in ufw_status.stdout"
+        fail_msg: "HTTPS port 443 is not open in UFW"

@@ -1,0 +1,71 @@
+# =============================================================================
+# Role: Security
+# =============================================================================
+# Security hardening for Ubuntu servers
+# =============================================================================
+
+---
+# UFW Firewall
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+
+- name: Set UFW default policies
+  ufw:
+    direction: "{{ item.direction }}"
+    policy: "{{ item.policy }}"
+  loop:
+    - { direction: 'incoming', policy: 'deny' }
+    - { direction: 'outgoing', policy: 'allow' }
+
+- name: Allow common ports through UFW
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+  loop: "{{ ufw_allowed_ports }}"
+
+- name: Allow Docker networks
+  ufw:
+    rule: allow
+    src: 172.16.0.0/12
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+
+# Fail2ban
+- name: Install Fail2ban
+  apt:
+    name: fail2ban
+    state: present
+
+- name: Configure Fail2ban
+  template:
+    src: jail.local.j2
+    dest: /etc/fail2ban/jail.local
+    mode: '0644'
+  notify: Restart Fail2ban
+
+- name: Ensure Fail2ban is running
+  systemd:
+    name: fail2ban
+    state: started
+    enabled: yes
+
+# Auto security updates
+- name: Install unattended-upgrades
+  apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+
+- name: Configure auto updates
+  copy:
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    mode: '0644'

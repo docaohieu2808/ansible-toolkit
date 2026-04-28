@@ -1,0 +1,12 @@
+# =============================================================================
+# Role: App Deploy - Handlers
+# =============================================================================
+
+---
+- name: Restart app containers
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    files:
+      - "{{ app_compose_file }}"
+    state: restarted
+    services: "{{ app_services if app_services | length > 0 else omit }}"

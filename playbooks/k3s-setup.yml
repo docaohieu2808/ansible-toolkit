@@ -1,0 +1,55 @@
+# =============================================================================
+# Playbook: K3s Cluster Setup
+# =============================================================================
+# Usage (single node):
+#   ansible-playbook -i inventory/production.yml playbooks/k3s-setup.yml \
+#     --limit test \
+#     --extra-vars "k3s_token=mysecrettoken"
+#
+# Usage (HA cluster - run server nodes first):
+#   ansible-playbook -i inventory/production.yml playbooks/k3s-setup.yml \
+#     --limit k3s_servers \
+#     --extra-vars "k3s_cluster_init=true k3s_token=mysecrettoken"
+#
+#   ansible-playbook -i inventory/production.yml playbooks/k3s-setup.yml \
+#     --limit k3s_agents \
+#     --extra-vars "k3s_role=agent k3s_server_url=https://<server-ip>:6443 k3s_token=mysecrettoken"
+# =============================================================================
+
+---
+- name: K3s Server (Control Plane) Setup
+  hosts: "{{ k3s_server_group | default(target_hosts | default('all')) }}"
+  become: true
+  gather_facts: true
+  serial: 1   # Install control plane nodes one at a time
+
+  pre_tasks:
+    - name: Validate k3s_token is set
+      assert:
+        that: k3s_token is defined and k3s_token != ""
+        fail_msg: "k3s_token must be set via --extra-vars or group_vars (use ansible-vault)"
+
+    - name: Display K3s setup target
+      debug:
+        msg: "Setting up K3s {{ k3s_role | default('server') }} on {{ inventory_hostname }} ({{ ansible_host }})"
+
+  roles:
+    - role: k3s
+      tags: [k3s]
+
+  post_tasks:
+    - name: Verify K3s node is Ready
+      command: k3s kubectl get nodes -o wide
+      register: k3s_node_status
+      changed_when: false
+      when: k3s_role | default('server') == 'server'
+
+    - name: Display K3s node status
+      debug:
+        msg: "{{ k3s_node_status.stdout_lines }}"
+      when: k3s_role | default('server') == 'server'
+
+    - name: Show kubeconfig path
+      debug:
+        msg: "Kubeconfig available at /etc/rancher/k3s/k3s.yaml on {{ inventory_hostname }}"
+      when: k3s_role | default('server') == 'server'

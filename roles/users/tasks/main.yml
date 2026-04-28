@@ -1,0 +1,84 @@
+# =============================================================================
+# Role: Users - Tasks (system user management + SSH keys)
+# =============================================================================
+
+---
+- name: Create or update system users
+  user:
+    name: "{{ item.name }}"
+    comment: "{{ item.comment | default('') }}"
+    shell: "{{ item.shell | default(users_default_shell) }}"
+    groups: "{{ item.groups | default([]) | join(',') }}"
+    append: yes
+    password: "{{ item.password | default('!') }}"
+    state: "{{ item.state | default('present') }}"
+    create_home: yes
+  loop: "{{ users_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  no_log: true
+
+- name: Ensure .ssh directory exists for each user
+  file:
+    path: "/home/{{ item.name }}/.ssh"
+    state: directory
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    mode: '0700'
+  loop: "{{ users_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - item.state | default('present') == 'present'
+    - item.ssh_keys is defined
+
+- name: Deploy SSH authorized keys
+  authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ item.1 }}"
+    state: present
+  with_subelements:
+    - "{{ users_list | selectattr('ssh_keys', 'defined') | list }}"
+    - ssh_keys
+  loop_control:
+    label: "{{ item.0.name }}"
+
+- name: Grant passwordless sudo to privileged users
+  template:
+    src: sudoers-user-nopasswd.j2
+    dest: "/etc/sudoers.d/{{ item.name }}"
+    owner: root
+    group: root
+    mode: '0440'
+    validate: 'visudo -cf %s'
+  loop: "{{ users_list | selectattr('sudo', 'defined') | selectattr('sudo') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: item.state | default('present') == 'present'
+
+- name: Remove sudoers file for non-sudo users
+  file:
+    path: "/etc/sudoers.d/{{ item.name }}"
+    state: absent
+  loop: "{{ users_list | selectattr('sudo', 'defined') | rejectattr('sudo') | list }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Lock password login for key-only users
+  user:
+    name: "{{ item.name }}"
+    password_lock: yes
+  loop: "{{ users_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when:
+    - users_lock_password | bool
+    - item.password | default('') == ''
+    - item.state | default('present') == 'present'
+
+- name: Remove users marked for deletion
+  user:
+    name: "{{ item }}"
+    state: absent
+    remove: yes
+  loop: "{{ users_remove }}"

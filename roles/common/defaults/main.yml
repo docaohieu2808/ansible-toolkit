@@ -1,0 +1,24 @@
+# =============================================================================
+# Role: Common - Default Variables
+# =============================================================================
+
+---
+timezone: Asia/Ho_Chi_Minh
+locale: en_US.UTF-8
+
+common_packages:
+  - curl
+  - wget
+  - htop
+  - vim
+  - git
+  - unzip
+  - jq
+  - net-tools
+  - dnsutils
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - apt-transport-https
+  - python3-pip

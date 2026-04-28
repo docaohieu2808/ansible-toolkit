@@ -1,0 +1,31 @@
+# =============================================================================
+# Role: Nginx Proxy - Default Variables (reverse proxy + SSL)
+# =============================================================================
+
+---
+nginx_user: www-data
+nginx_worker_processes: auto
+nginx_worker_connections: 1024
+nginx_config_dir: /etc/nginx
+nginx_sites_dir: /etc/nginx/sites-enabled
+
+# SSL via certbot/Let's Encrypt
+nginx_ssl_enabled: true
+nginx_ssl_email: ""             # Required for certbot
+nginx_ssl_staging: false        # Set true for testing (avoids rate limits)
+
+# Virtual hosts to configure
+nginx_vhosts: []
+# Example:
+# nginx_vhosts:
+#   - server_name: app.example.com
+#     upstream_host: localhost
+#     upstream_port: 8080
+#     ssl: true
+#     extra_directives: ""
+
+# Security headers
+nginx_security_headers: true
+
+# Gzip compression
+nginx_gzip_enabled: true

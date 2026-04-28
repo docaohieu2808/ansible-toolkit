@@ -1,0 +1,49 @@
+# =============================================================================
+# Role: Backup - Default Variables (restic to S3/GCS)
+# =============================================================================
+
+---
+restic_version: "0.16.4"
+restic_install_dir: /usr/local/bin
+restic_config_dir: /etc/restic
+restic_cache_dir: /var/cache/restic
+
+# Repository backend: s3 or gs (GCS)
+backup_backend: s3
+
+# S3 settings
+backup_s3_bucket: ""         # e.g. s3:s3.amazonaws.com/my-backup-bucket
+backup_s3_access_key: ""     # Set in vault
+backup_s3_secret_key: ""     # Set in vault
+backup_s3_region: "ap-southeast-1"
+
+# GCS settings (when backup_backend == gs)
+backup_gcs_bucket: ""        # e.g. gs:my-gcs-bucket
+backup_gcs_credentials: ""   # Path to service account JSON, set in vault
+
+# Restic repository password - MUST set in vault
+backup_restic_password: ""
+
+# Directories to back up
+backup_sources:
+  - /opt/apps
+  - /opt/data
+  - /etc
+
+# Exclude patterns
+backup_excludes:
+  - "*.tmp"
+  - "*.log"
+  - "/opt/data/*/cache"
+
+# Retention policy
+backup_keep_daily: 7
+backup_keep_weekly: 4
+backup_keep_monthly: 3
+
+# Schedule (systemd timer OnCalendar format)
+backup_schedule: "02:30"   # daily at 02:30
+
+# Notifications (optional)
+backup_notify_on_failure: false
+backup_notify_email: ""

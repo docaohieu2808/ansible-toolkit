@@ -1,0 +1,13 @@
+# =============================================================================
+# Cloud Dynamic Inventory Example
+# =============================================================================
+# Use plugins/inventory/terraform-dynamic-inventory.py to populate from TF state
+# =============================================================================
+
+plugin: terraform-dynamic-inventory
+state_file: ../terraform/terraform.tfstate
+filter:
+  type: cloud_compute_instance
+group_by:
+  - tag.environment
+  - tag.role

@@ -1,0 +1,33 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    docker_users:
+      - root
+    docker_daemon_config:
+      storage-driver: overlay2
+      log-driver: json-file
+      log-opts:
+        max-size: "100m"
+        max-file: "5"
+      live-restore: true
+      userland-proxy: false
+
+  pre_tasks:
+    - name: Install systemd for molecule container
+      apt:
+        name:
+          - systemd
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+        update_cache: yes
+
+  roles:
+    - role: docker

@@ -1,0 +1,14 @@
+# =============================================================================
+# Role: Security - Handlers
+# =============================================================================
+
+---
+- name: Restart Fail2ban
+  systemd:
+    name: fail2ban
+    state: restarted
+
+- name: Restart SSH
+  systemd:
+    name: sshd
+    state: restarted

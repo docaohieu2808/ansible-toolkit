@@ -1,0 +1,26 @@
+# =============================================================================
+# WireGuard Interface Configuration - {{ wireguard_interface }}
+# Managed by Ansible - DO NOT EDIT MANUALLY
+# =============================================================================
+
+[Interface]
+Address = {{ wireguard_address }}
+ListenPort = {{ wireguard_port }}
+PrivateKey = {{ _wg_private_key }}
+DNS = {{ wireguard_dns }}
+
+# Masquerade outbound traffic
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -A FORWARD -o %i -j ACCEPT; iptables -t nat -A POSTROUTING -o {{ wireguard_masquerade_interface }} -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -D FORWARD -o %i -j ACCEPT; iptables -t nat -D POSTROUTING -o {{ wireguard_masquerade_interface }} -j MASQUERADE
+
+{% for peer in wireguard_peers %}
+# Peer: {{ peer.name }}
+[Peer]
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.allowed_ips }}
+{% if peer.preshared_key is defined and peer.preshared_key != '' %}
+PresharedKey = {{ peer.preshared_key }}
+{% endif %}
+PersistentKeepalive = {{ wireguard_persistent_keepalive }}
+
+{% endfor %}

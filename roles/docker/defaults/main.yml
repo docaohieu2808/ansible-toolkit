@@ -1,0 +1,16 @@
+# =============================================================================
+# Role: Docker - Default Variables
+# =============================================================================
+
+---
+docker_users:
+  - root
+
+docker_daemon_config:
+  storage-driver: overlay2
+  log-driver: json-file
+  log-opts:
+    max-size: "100m"
+    max-file: "5"
+  live-restore: true
+  userland-proxy: false

@@ -1,0 +1,74 @@
+# =============================================================================
+# Role: WireGuard - Tasks
+# =============================================================================
+
+---
+- name: Install WireGuard packages
+  apt:
+    name:
+      - wireguard
+      - wireguard-tools
+      - iptables
+    state: present
+    update_cache: yes
+
+- name: Enable IP forwarding
+  sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    reload: yes
+  loop:
+    - net.ipv4.ip_forward
+    - net.ipv6.conf.all.forwarding
+  when: wireguard_ip_forward | bool
+
+- name: Generate WireGuard server private key
+  command: wg genkey
+  register: wg_private_key_generated
+  changed_when: false
+  when: wireguard_server_private_key == ""
+  no_log: true
+
+- name: Set server private key fact
+  set_fact:
+    _wg_private_key: "{{ wireguard_server_private_key if wireguard_server_private_key != '' else wg_private_key_generated.stdout }}"
+  no_log: true
+
+- name: Derive server public key
+  shell: "echo '{{ _wg_private_key }}' | wg pubkey"
+  register: wg_public_key_derived
+  changed_when: false
+  no_log: true
+
+- name: Set server public key fact
+  set_fact:
+    _wg_public_key: "{{ wg_public_key_derived.stdout }}"
+
+- name: Ensure WireGuard config directory exists
+  file:
+    path: "{{ wireguard_config_dir }}"
+    state: directory
+    mode: '0700'
+    owner: root
+    group: root
+
+- name: Deploy WireGuard interface config
+  template:
+    src: wg-interface-config.conf.j2
+    dest: "{{ wireguard_config_dir }}/{{ wireguard_interface }}.conf"
+    mode: '0600'
+    owner: root
+    group: root
+  notify: Restart WireGuard
+
+- name: Enable and start WireGuard interface
+  systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Display WireGuard server public key
+  debug:
+    msg: "WireGuard server public key: {{ _wg_public_key }}"

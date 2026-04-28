@@ -1,0 +1,41 @@
+---
+- name: Verify common role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Check timezone is set correctly
+      command: timedatectl show --property=Timezone --value
+      register: tz_result
+      changed_when: false
+      failed_when: tz_result.stdout != 'Asia/Ho_Chi_Minh'
+
+    - name: Check common packages are installed
+      package_facts:
+        manager: apt
+
+    - name: Assert curl is installed
+      assert:
+        that: "'curl' in ansible_facts.packages"
+        fail_msg: "curl is not installed"
+
+    - name: Assert wget is installed
+      assert:
+        that: "'wget' in ansible_facts.packages"
+        fail_msg: "wget is not installed"
+
+    - name: Assert git is installed
+      assert:
+        that: "'git' in ansible_facts.packages"
+        fail_msg: "git is not installed"
+
+    - name: Assert vim is installed
+      assert:
+        that: "'vim' in ansible_facts.packages"
+        fail_msg: "vim is not installed"
+
+    - name: Assert jq is installed
+      assert:
+        that: "'jq' in ansible_facts.packages"
+        fail_msg: "jq is not installed"

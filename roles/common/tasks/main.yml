@@ -1,0 +1,39 @@
+# =============================================================================
+# Role: Common
+# =============================================================================
+# Base system configuration applied to all servers
+# =============================================================================
+
+---
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Upgrade packages
+  apt:
+    upgrade: safe
+    autoremove: yes
+    autoclean: yes
+
+- name: Install common packages
+  apt:
+    name: "{{ common_packages }}"
+    state: present
+
+- name: Set timezone
+  timezone:
+    name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
+
+- name: Set hostname
+  hostname:
+    name: "{{ inventory_hostname }}"
+
+- name: Update /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.1\.1'
+    line: "127.0.1.1 {{ inventory_hostname }}"
+    state: present
+  tags:
+    - molecule-notest

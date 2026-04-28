@@ -1,0 +1,19 @@
+---
+# https://ansible-lint.readthedocs.io/configuration/
+profile: production
+
+skip_list:
+  - role-name              # role names with dashes are fine
+  - var-naming[no-role-prefix]
+  - yaml[line-length]      # long lines OK in our jinja templates
+
+warn_list:
+  - command-instead-of-module
+  - experimental
+  - no-changed-when
+
+exclude_paths:
+  - inventories/_examples/
+  - .git/
+  - .ansible/
+  - molecule/

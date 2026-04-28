@@ -1,0 +1,93 @@
+# =============================================================================
+# Role: Firewall - Tasks
+# =============================================================================
+
+---
+- name: Install UFW
+  apt:
+    name: ufw
+    state: present
+    update_cache: yes
+  when: firewall_backend == 'ufw'
+
+- name: Reset UFW rules
+  ufw:
+    state: reset
+  when:
+    - firewall_backend == 'ufw'
+    - ufw_reset_on_apply | bool
+
+- name: Set UFW default incoming policy
+  ufw:
+    direction: incoming
+    policy: "{{ ufw_default_incoming }}"
+  when: firewall_backend == 'ufw'
+
+- name: Set UFW default outgoing policy
+  ufw:
+    direction: outgoing
+    policy: "{{ ufw_default_outgoing }}"
+  when: firewall_backend == 'ufw'
+
+- name: Set UFW default routed policy
+  ufw:
+    direction: routed
+    policy: "{{ ufw_default_routed }}"
+  when: firewall_backend == 'ufw'
+
+- name: Allow base UFW rules
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_base_rules }}"
+  when: firewall_backend == 'ufw'
+
+- name: Allow extra UFW rules
+  ufw:
+    rule: allow
+    port: "{{ item.port }}"
+    proto: "{{ item.proto }}"
+    src: "{{ item.src | default(omit) }}"
+    comment: "{{ item.comment | default('') }}"
+  loop: "{{ ufw_extra_rules }}"
+  when: firewall_backend == 'ufw'
+
+- name: Allow trusted networks
+  ufw:
+    rule: allow
+    src: "{{ item }}"
+    comment: "Trusted network"
+  loop: "{{ ufw_trusted_networks }}"
+  when:
+    - firewall_backend == 'ufw'
+    - ufw_trusted_networks | length > 0
+
+- name: Apply Docker UFW fix (prevent Docker bypassing UFW)
+  blockinfile:
+    path: /etc/ufw/after.rules
+    marker: "# {mark} ANSIBLE MANAGED - Docker UFW fix"
+    block: |
+      *filter
+      :DOCKER-USER - [0:0]
+      :ufw-user-input - [0:0]
+      -A DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+      -A DOCKER-USER -m conntrack --ctstate INVALID -j DROP
+      -A DOCKER-USER -i eth0 -j ufw-user-input
+      -A DOCKER-USER -i eth0 -j DROP
+      COMMIT
+  when:
+    - firewall_backend == 'ufw'
+    - ufw_docker_fix | bool
+  notify: Reload UFW
+
+- name: Set UFW logging level
+  ufw:
+    logging: "{{ ufw_logging }}"
+  when: firewall_backend == 'ufw'
+
+- name: Enable UFW
+  ufw:
+    state: enabled
+  when: firewall_backend == 'ufw'

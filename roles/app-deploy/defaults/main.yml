@@ -1,0 +1,30 @@
+# =============================================================================
+# Role: App Deploy - Default Variables (generic docker compose deployment)
+# =============================================================================
+
+---
+# Application identity
+app_name: ""                   # Required: name of the app
+app_base_dir: /opt/apps        # Root dir for all apps
+app_dir: "{{ app_base_dir }}/{{ app_name }}"
+
+# Docker Compose
+app_compose_file: docker-compose.yml
+app_compose_pull: true         # Pull latest images before up
+app_compose_recreate: smart    # always | never | smart
+
+# Environment file
+app_env_file: ""               # Path to .env file on control node to copy
+app_env_vars: {}               # Extra env vars to write into .env
+
+# Services to manage (empty = all services in compose file)
+app_services: []
+
+# Health check after deploy
+app_healthcheck_enabled: true
+app_healthcheck_url: ""        # e.g. http://localhost:8080/health
+app_healthcheck_retries: 10
+app_healthcheck_delay: 5
+
+# Notifications
+app_deploy_notify: false

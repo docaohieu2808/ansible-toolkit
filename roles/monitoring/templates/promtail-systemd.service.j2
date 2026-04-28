@@ -1,0 +1,14 @@
+[Unit]
+Description=Grafana Promtail log shipping agent
+After=network.target
+
+[Service]
+User={{ promtail_user }}
+Group={{ promtail_user }}
+Type=simple
+ExecStart=/usr/local/bin/promtail -config.file={{ promtail_config_dir }}/config.yml
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

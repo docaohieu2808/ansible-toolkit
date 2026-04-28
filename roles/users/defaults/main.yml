@@ -1,0 +1,33 @@
+# =============================================================================
+# Role: Users - Default Variables (system user management + SSH keys)
+# =============================================================================
+
+---
+# List of users to create/manage
+users_list: []
+# Example:
+# users_list:
+#   - name: deploy
+#     comment: "Deployment user"
+#     shell: /bin/bash
+#     groups: [sudo, docker]
+#     sudo: true
+#     ssh_keys:
+#       - "ssh-ed25519 AAAA... user@laptop"
+#     password: ""     # hashed - use vault. Empty = no password (key-only)
+#     state: present   # present or absent
+
+# Users to remove (convenience list)
+users_remove: []
+
+# Default shell for new users
+users_default_shell: /bin/bash
+
+# SSH authorized_keys file mode
+users_ssh_key_mode: "0600"
+
+# Sudoers - grant passwordless sudo
+users_sudoers_dir: /etc/sudoers.d
+
+# Lock password login for key-only users
+users_lock_password: true

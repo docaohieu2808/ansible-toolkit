@@ -1,0 +1,43 @@
+# =============================================================================
+# Playbook: Monitoring Setup - node_exporter + promtail
+# =============================================================================
+# Usage:
+#   ansible-playbook -i inventory/production.yml playbooks/monitoring-setup.yml \
+#     --extra-vars "promtail_loki_url=http://loki.internal:3100/loki/api/v1/push"
+# =============================================================================
+
+---
+- name: Setup Monitoring Stack (node_exporter + promtail)
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  vars:
+    # Override promtail_loki_url via --extra-vars or group_vars
+    promtail_loki_url: "{{ promtail_loki_url | default('http://loki:3100/loki/api/v1/push') }}"
+
+  pre_tasks:
+    - name: Display monitoring setup target
+      debug:
+        msg: "Installing monitoring agents on {{ inventory_hostname }} ({{ ansible_host }})"
+
+  roles:
+    - role: monitoring
+      tags: [monitoring, node_exporter, promtail]
+
+  post_tasks:
+    - name: Verify node_exporter is responding
+      uri:
+        url: "http://localhost:{{ node_exporter_port | default(9100) }}/metrics"
+        timeout: 10
+      register: ne_check
+      retries: 5
+      delay: 3
+      until: ne_check.status == 200
+      changed_when: false
+
+    - name: Display monitoring status
+      debug:
+        msg:
+          - "node_exporter: http://{{ ansible_host }}:{{ node_exporter_port | default(9100) }}/metrics"
+          - "promtail: http://{{ ansible_host }}:{{ promtail_port | default(9080) }}/ready"

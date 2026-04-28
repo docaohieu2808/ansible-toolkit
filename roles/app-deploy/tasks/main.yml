@@ -1,0 +1,69 @@
+# =============================================================================
+# Role: App Deploy - Tasks (docker compose pull + up)
+# =============================================================================
+
+---
+- name: Validate required variable app_name
+  assert:
+    that: app_name != ""
+    fail_msg: "app_name must be set"
+
+- name: Create application directory
+  file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Copy .env file to app directory
+  copy:
+    src: "{{ app_env_file }}"
+    dest: "{{ app_dir }}/.env"
+    owner: root
+    group: root
+    mode: '0640'
+  when: app_env_file != ""
+
+- name: Write extra env vars into .env
+  lineinfile:
+    path: "{{ app_dir }}/.env"
+    line: "{{ item.key }}={{ item.value }}"
+    regexp: "^{{ item.key }}="
+    create: yes
+    mode: '0640'
+  loop: "{{ app_env_vars | dict2items }}"
+  when: app_env_vars | length > 0
+  no_log: true
+
+- name: Pull latest Docker images
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    files:
+      - "{{ app_compose_file }}"
+    pull: always
+    state: present
+  when: app_compose_pull | bool
+  notify: Restart app containers
+
+- name: Deploy application with docker compose up
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    files:
+      - "{{ app_compose_file }}"
+    recreate: "{{ app_compose_recreate }}"
+    state: present
+    services: "{{ app_services if app_services | length > 0 else omit }}"
+
+- name: Wait for application health endpoint
+  uri:
+    url: "{{ app_healthcheck_url }}"
+    status_code: 200
+    timeout: 10
+  register: health_result
+  retries: "{{ app_healthcheck_retries }}"
+  delay: "{{ app_healthcheck_delay }}"
+  until: health_result.status == 200
+  when:
+    - app_healthcheck_enabled | bool
+    - app_healthcheck_url != ""

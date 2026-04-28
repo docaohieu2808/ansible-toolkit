@@ -1,0 +1,20 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    timezone: Asia/Ho_Chi_Minh
+    common_packages:
+      - curl
+      - wget
+      - vim
+      - git
+      - unzip
+      - jq
+      - net-tools
+      - ca-certificates
+
+  roles:
+    - role: common

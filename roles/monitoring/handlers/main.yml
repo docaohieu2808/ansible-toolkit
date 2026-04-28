@@ -1,0 +1,18 @@
+# =============================================================================
+# Role: Monitoring - Handlers
+# =============================================================================
+
+---
+- name: Reload systemd
+  systemd:
+    daemon_reload: yes
+
+- name: Restart node_exporter
+  systemd:
+    name: node_exporter
+    state: restarted
+
+- name: Restart promtail
+  systemd:
+    name: promtail
+    state: restarted

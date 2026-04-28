@@ -1,0 +1,88 @@
+# =============================================================================
+# Role: Nginx Proxy - Tasks (reverse proxy + certbot SSL)
+# =============================================================================
+
+---
+- name: Install nginx and certbot
+  apt:
+    name:
+      - nginx
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: yes
+
+- name: Ensure nginx sites-available and sites-enabled dirs exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /etc/nginx/sites-available
+    - /etc/nginx/sites-enabled
+
+- name: Deploy nginx global config
+  template:
+    src: nginx-global-config.conf.j2
+    dest: /etc/nginx/nginx.conf
+    mode: '0644'
+    validate: 'nginx -t -c %s'
+  notify: Reload nginx
+
+- name: Remove default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Deploy nginx vhost configs
+  template:
+    src: nginx-vhost-reverse-proxy.conf.j2
+    dest: "/etc/nginx/sites-available/{{ item.server_name }}.conf"
+    mode: '0644'
+  loop: "{{ nginx_vhosts }}"
+  loop_control:
+    label: "{{ item.server_name }}"
+  notify: Reload nginx
+
+- name: Enable nginx vhost configs
+  file:
+    src: "/etc/nginx/sites-available/{{ item.server_name }}.conf"
+    dest: "/etc/nginx/sites-enabled/{{ item.server_name }}.conf"
+    state: link
+  loop: "{{ nginx_vhosts }}"
+  loop_control:
+    label: "{{ item.server_name }}"
+  notify: Reload nginx
+
+- name: Ensure nginx is started and enabled
+  systemd:
+    name: nginx
+    state: started
+    enabled: yes
+
+- name: Obtain Let's Encrypt certificates
+  command: >
+    certbot --nginx
+    -d {{ item.server_name }}
+    --email {{ nginx_ssl_email }}
+    --agree-tos
+    --non-interactive
+    {% if nginx_ssl_staging %}--staging{% endif %}
+    --redirect
+  loop: "{{ nginx_vhosts }}"
+  loop_control:
+    label: "{{ item.server_name }}"
+  when:
+    - nginx_ssl_enabled | bool
+    - item.ssl | default(true)
+    - nginx_ssl_email != ""
+  register: certbot_result
+  changed_when: "'Congratulations' in certbot_result.stdout"
+
+- name: Ensure certbot renewal timer is enabled
+  systemd:
+    name: certbot.timer
+    state: started
+    enabled: yes
+  when: nginx_ssl_enabled | bool

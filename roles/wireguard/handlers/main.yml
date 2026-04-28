@@ -1,0 +1,9 @@
+# =============================================================================
+# Role: WireGuard - Handlers
+# =============================================================================
+
+---
+- name: Restart WireGuard
+  systemd:
+    name: "wg-quick@{{ wireguard_interface }}"
+    state: restarted

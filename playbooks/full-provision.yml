@@ -1,0 +1,60 @@
+# =============================================================================
+# Playbook: Full Provision - run all roles on a new server
+# =============================================================================
+# Usage:
+#   ansible-playbook -i inventory/production.yml playbooks/full-provision.yml \
+#     --limit <host_or_group> \
+#     --extra-vars "nginx_ssl_email=admin@example.com"
+# =============================================================================
+
+---
+- name: Full Server Provisioning
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+  any_errors_fatal: false
+
+  pre_tasks:
+    - name: Verify Ansible version
+      assert:
+        that: ansible_version.full is version('2.14', '>=')
+        fail_msg: "Requires Ansible >= 2.14"
+
+    - name: Display target hosts
+      debug:
+        msg: "Provisioning {{ inventory_hostname }} ({{ ansible_host }})"
+
+  roles:
+    - role: common
+      tags: [common, base]
+
+    - role: users
+      tags: [users]
+      when: users_list | length > 0
+
+    - role: security
+      tags: [security, hardening]
+
+    - role: firewall
+      tags: [firewall, security]
+
+    - role: docker
+      tags: [docker]
+
+    - role: monitoring
+      tags: [monitoring, observability]
+
+    - role: backup
+      tags: [backup]
+      when:
+        - backup_enabled | default(false) | bool
+        - backup_restic_password | default('') != ''
+
+    - role: nginx-proxy
+      tags: [nginx, proxy]
+      when: nginx_vhosts | default([]) | length > 0
+
+  post_tasks:
+    - name: Full provisioning completed
+      debug:
+        msg: "Server {{ inventory_hostname }} fully provisioned"

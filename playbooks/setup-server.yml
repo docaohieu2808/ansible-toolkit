@@ -1,0 +1,168 @@
+# =============================================================================
+# Playbook: Initial Server Setup
+# =============================================================================
+# Run this playbook on new servers to prepare them for production
+# Usage: ansible-playbook -i inventory/production.yml playbooks/setup-server.yml
+# =============================================================================
+
+---
+- name: Initial Server Setup
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    update_cache: true
+
+  tasks:
+    # =========================================================================
+    # System Update
+    # =========================================================================
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: update_cache | bool
+
+    - name: Upgrade all packages
+      apt:
+        upgrade: safe
+        autoremove: yes
+        autoclean: yes
+      register: apt_upgrade
+
+    - name: Display upgrade results
+      debug:
+        msg: "Packages upgraded: {{ apt_upgrade.stdout_lines | default([]) | length }}"
+      when: apt_upgrade.changed
+
+    # =========================================================================
+    # Install Essential Packages
+    # =========================================================================
+    - name: Install common packages
+      apt:
+        name: "{{ common_packages }}"
+        state: present
+      vars:
+        common_packages:
+          - curl
+          - wget
+          - htop
+          - vim
+          - git
+          - unzip
+          - jq
+          - net-tools
+          - dnsutils
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - software-properties-common
+          - apt-transport-https
+          - python3-pip
+
+    # =========================================================================
+    # Configure Timezone
+    # =========================================================================
+    - name: Set timezone
+      timezone:
+        name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
+
+    # =========================================================================
+    # Configure Hostname
+    # =========================================================================
+    - name: Set hostname
+      hostname:
+        name: "{{ inventory_hostname }}"
+
+    - name: Update /etc/hosts with hostname
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: "127.0.1.1 {{ inventory_hostname }}"
+        state: present
+
+    # =========================================================================
+    # SSH Hardening (Basic)
+    # =========================================================================
+    - name: Ensure SSH directory exists
+      file:
+        path: /root/.ssh
+        state: directory
+        mode: '0700'
+        owner: root
+        group: root
+
+    - name: Configure SSH - Disable password authentication
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PasswordAuthentication"
+        line: "PasswordAuthentication {{ ssh_password_authentication | default('no') }}"
+        state: present
+      notify: Restart SSH
+
+    - name: Configure SSH - Disable empty passwords
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitEmptyPasswords"
+        line: "PermitEmptyPasswords no"
+        state: present
+      notify: Restart SSH
+
+    # =========================================================================
+    # Configure Swap (if needed)
+    # =========================================================================
+    - name: Check if swap exists
+      command: swapon --show
+      register: swap_check
+      changed_when: false
+      failed_when: false
+
+    - name: Create swap file if not exists and memory < 4GB
+      block:
+        - name: Create swap file
+          command: fallocate -l 2G /swapfile
+          args:
+            creates: /swapfile
+
+        - name: Set swap file permissions
+          file:
+            path: /swapfile
+            mode: '0600'
+
+        - name: Make swap file
+          command: mkswap /swapfile
+          args:
+            creates: /swapfile
+
+        - name: Enable swap
+          command: swapon /swapfile
+
+        - name: Add swap to fstab
+          lineinfile:
+            path: /etc/fstab
+            line: "/swapfile none swap sw 0 0"
+            state: present
+      when:
+        - swap_check.stdout == ""
+        - ansible_memtotal_mb < 4096
+
+    # =========================================================================
+    # System Optimization
+    # =========================================================================
+    - name: Configure sysctl for better performance
+      sysctl:
+        name: "{{ item.name }}"
+        value: "{{ item.value }}"
+        state: present
+        reload: yes
+      loop:
+        - { name: 'vm.swappiness', value: '10' }
+        - { name: 'net.core.somaxconn', value: '65535' }
+        - { name: 'net.ipv4.tcp_max_syn_backlog', value: '65535' }
+
+  handlers:
+    - name: Restart SSH
+      service:
+        name: sshd
+        state: restarted

@@ -1,0 +1,205 @@
+# =============================================================================
+# Playbook: Security Hardening
+# =============================================================================
+# Apply security hardening to servers
+# Usage: ansible-playbook -i inventory/production.yml playbooks/security.yml
+# =============================================================================
+
+---
+- name: Security Hardening
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # UFW Configuration
+    ufw_enabled: true
+    ufw_default_incoming: deny
+    ufw_default_outgoing: allow
+    ufw_allowed_ports:
+      - { port: "22", proto: "tcp" }     # SSH
+      - { port: "80", proto: "tcp" }     # HTTP
+      - { port: "443", proto: "tcp" }    # HTTPS
+
+    # Fail2ban Configuration
+    fail2ban_enabled: true
+    fail2ban_maxretry: 5
+    fail2ban_bantime: 3600
+    fail2ban_findtime: 600
+
+  tasks:
+    # =========================================================================
+    # UFW Firewall
+    # =========================================================================
+    - name: Install UFW
+      apt:
+        name: ufw
+        state: present
+        update_cache: yes
+
+    - name: Reset UFW to default
+      ufw:
+        state: reset
+      when: ufw_enabled | bool
+
+    - name: Set UFW default incoming policy
+      ufw:
+        direction: incoming
+        policy: "{{ ufw_default_incoming }}"
+      when: ufw_enabled | bool
+
+    - name: Set UFW default outgoing policy
+      ufw:
+        direction: outgoing
+        policy: "{{ ufw_default_outgoing }}"
+      when: ufw_enabled | bool
+
+    - name: Allow SSH through UFW
+      ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+      loop: "{{ ufw_allowed_ports }}"
+      when: ufw_enabled | bool
+
+    - name: Allow Docker ports (internal)
+      ufw:
+        rule: allow
+        src: 172.16.0.0/12
+        comment: "Docker internal networks"
+      when: ufw_enabled | bool
+
+    - name: Enable UFW
+      ufw:
+        state: enabled
+      when: ufw_enabled | bool
+
+    # =========================================================================
+    # Fail2ban
+    # =========================================================================
+    - name: Install Fail2ban
+      apt:
+        name: fail2ban
+        state: present
+      when: fail2ban_enabled | bool
+
+    - name: Configure Fail2ban jail.local
+      copy:
+        content: |
+          [DEFAULT]
+          bantime = {{ fail2ban_bantime }}
+          findtime = {{ fail2ban_findtime }}
+          maxretry = {{ fail2ban_maxretry }}
+          backend = systemd
+          banaction = ufw
+
+          [sshd]
+          enabled = true
+          port = ssh
+          filter = sshd
+          logpath = /var/log/auth.log
+          maxretry = {{ fail2ban_maxretry }}
+          bantime = {{ fail2ban_bantime }}
+        dest: /etc/fail2ban/jail.local
+        mode: '0644'
+      notify: Restart Fail2ban
+      when: fail2ban_enabled | bool
+
+    - name: Ensure Fail2ban is started and enabled
+      systemd:
+        name: fail2ban
+        state: started
+        enabled: yes
+      when: fail2ban_enabled | bool
+
+    # =========================================================================
+    # Automatic Security Updates
+    # =========================================================================
+    - name: Install unattended-upgrades
+      apt:
+        name:
+          - unattended-upgrades
+          - apt-listchanges
+        state: present
+
+    - name: Configure unattended-upgrades
+      copy:
+        content: |
+          APT::Periodic::Update-Package-Lists "1";
+          APT::Periodic::Download-Upgradeable-Packages "1";
+          APT::Periodic::AutocleanInterval "7";
+          APT::Periodic::Unattended-Upgrade "1";
+        dest: /etc/apt/apt.conf.d/20auto-upgrades
+        mode: '0644'
+
+    - name: Configure unattended-upgrades settings
+      copy:
+        content: |
+          Unattended-Upgrade::Allowed-Origins {
+              "${distro_id}:${distro_codename}";
+              "${distro_id}:${distro_codename}-security";
+              "${distro_id}ESMApps:${distro_codename}-apps-security";
+              "${distro_id}ESM:${distro_codename}-infra-security";
+          };
+          Unattended-Upgrade::Package-Blacklist {
+          };
+          Unattended-Upgrade::DevRelease "false";
+          Unattended-Upgrade::Remove-Unused-Kernel-Packages "true";
+          Unattended-Upgrade::Remove-Unused-Dependencies "true";
+          Unattended-Upgrade::Automatic-Reboot "false";
+        dest: /etc/apt/apt.conf.d/50unattended-upgrades
+        mode: '0644'
+
+    # =========================================================================
+    # SSH Security
+    # =========================================================================
+    - name: Configure SSH security settings
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.line }}"
+        state: present
+      loop:
+        - { regexp: '^#?PasswordAuthentication', line: 'PasswordAuthentication no' }
+        - { regexp: '^#?PermitEmptyPasswords', line: 'PermitEmptyPasswords no' }
+        - { regexp: '^#?X11Forwarding', line: 'X11Forwarding no' }
+        - { regexp: '^#?MaxAuthTries', line: 'MaxAuthTries 3' }
+        - { regexp: '^#?ClientAliveInterval', line: 'ClientAliveInterval 300' }
+        - { regexp: '^#?ClientAliveCountMax', line: 'ClientAliveCountMax 2' }
+      notify: Restart SSH
+
+    # =========================================================================
+    # Verify Security Status
+    # =========================================================================
+    - name: Get UFW status
+      command: ufw status verbose
+      register: ufw_status
+      changed_when: false
+      when: ufw_enabled | bool
+
+    - name: Display UFW status
+      debug:
+        msg: "{{ ufw_status.stdout_lines }}"
+      when: ufw_enabled | bool
+
+    - name: Get Fail2ban status
+      command: fail2ban-client status
+      register: fail2ban_status
+      changed_when: false
+      when: fail2ban_enabled | bool
+
+    - name: Display Fail2ban status
+      debug:
+        msg: "{{ fail2ban_status.stdout_lines }}"
+      when: fail2ban_enabled | bool
+
+  handlers:
+    - name: Restart SSH
+      systemd:
+        name: sshd
+        state: restarted
+
+    - name: Restart Fail2ban
+      systemd:
+        name: fail2ban
+        state: restarted

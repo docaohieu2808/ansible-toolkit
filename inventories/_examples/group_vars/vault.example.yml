@@ -1,0 +1,15 @@
+# =============================================================================
+# Vault Variables - EXAMPLE (encrypt with ansible-vault)
+# =============================================================================
+# Encrypt:
+#   ansible-vault encrypt inventories/<env>/group_vars/all/vault.yml
+# Edit:
+#   ansible-vault edit inventories/<env>/group_vars/all/vault.yml
+#
+# Convention: prefix with vault_ to make grep + lookup obvious
+# =============================================================================
+
+vault_admin_email: admin@example.com
+vault_smtp_password: changeme
+vault_db_password: changeme
+vault_api_token: changeme

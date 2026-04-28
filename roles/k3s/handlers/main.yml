@@ -1,0 +1,14 @@
+# =============================================================================
+# Role: K3s - Handlers
+# =============================================================================
+
+---
+- name: Restart K3s
+  systemd:
+    name: k3s
+    state: restarted
+
+- name: Restart K3s agent
+  systemd:
+    name: k3s-agent
+    state: restarted

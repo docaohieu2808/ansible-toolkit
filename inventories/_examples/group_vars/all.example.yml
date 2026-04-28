@@ -1,0 +1,45 @@
+# =============================================================================
+# Group Variables - All Hosts (EXAMPLE)
+# =============================================================================
+# Copy to inventories/<env>/group_vars/all.yml and edit
+# =============================================================================
+
+# SSH
+ansible_user: root
+ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+ansible_python_interpreter: /usr/bin/python3
+ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+
+# System
+timezone: UTC
+locale: en_US.UTF-8
+
+# Common Packages
+common_packages:
+  - curl
+  - wget
+  - htop
+  - vim
+  - git
+  - unzip
+  - jq
+  - net-tools
+  - dnsutils
+  - ca-certificates
+  - gnupg
+  - lsb-release
+  - software-properties-common
+  - apt-transport-https
+
+# SSH hardening
+ssh_port: 22
+ssh_permit_root_login: 'no'
+ssh_password_authentication: 'no'
+
+# UFW
+ufw_enabled: true
+ufw_default_incoming: deny
+ufw_default_outgoing: allow
+
+# Secrets reference vault.yml (ansible-vault encrypted)
+# Example: smtp_password: "{{ vault_smtp_password }}"

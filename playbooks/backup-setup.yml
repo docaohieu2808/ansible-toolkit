@@ -1,0 +1,64 @@
+# =============================================================================
+# Playbook: Backup Setup - restic to S3/GCS
+# =============================================================================
+# Usage:
+#   ansible-playbook -i inventory/production.yml playbooks/backup-setup.yml \
+#     --limit backend_cluster \
+#     --extra-vars "@vault.yml"
+#
+# Required vault variables:
+#   backup_s3_bucket: "s3:s3.amazonaws.com/my-bucket"
+#   backup_s3_access_key: "AKIAIOSFODNN7EXAMPLE"
+#   backup_s3_secret_key: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+#   backup_restic_password: "strong-random-password"
+# =============================================================================
+
+---
+- name: Configure Automated Backups with Restic
+  hosts: "{{ target_hosts | default('all') }}"
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Validate required backup credentials
+      assert:
+        that:
+          - backup_restic_password is defined and backup_restic_password != ""
+          - (backup_s3_bucket is defined and backup_s3_bucket != "") or
+            (backup_gcs_bucket is defined and backup_gcs_bucket != "")
+        fail_msg: >
+          Missing backup credentials. Set backup_restic_password and
+          backup_s3_bucket (or backup_gcs_bucket) via ansible-vault.
+
+    - name: Display backup setup target
+      debug:
+        msg:
+          - "Configuring backups on {{ inventory_hostname }} ({{ ansible_host }})"
+          - "Backend: {{ backup_backend | default('s3') }}"
+          - "Sources: {{ backup_sources | default(['/opt/apps', '/opt/data', '/etc']) }}"
+          - "Schedule: daily at {{ backup_schedule | default('02:30') }}"
+
+  roles:
+    - role: backup
+      tags: [backup, restic]
+
+  post_tasks:
+    - name: Trigger a test backup run
+      command: /usr/local/bin/restic-backup
+      register: test_backup
+      changed_when: true
+      when: run_test_backup | default(false) | bool
+
+    - name: Display test backup result
+      debug:
+        msg: "{{ test_backup.stdout_lines }}"
+      when: run_test_backup | default(false) | bool
+
+    - name: Verify backup timer is active
+      command: systemctl status restic-backup.timer
+      register: timer_status
+      changed_when: false
+
+    - name: Display timer status
+      debug:
+        msg: "{{ timer_status.stdout_lines }}"
