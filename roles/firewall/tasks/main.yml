@@ -4,39 +4,39 @@
 
 ---
 - name: Install UFW
-  apt:
+  ansible.builtin.apt:
     name: ufw
     state: present
     update_cache: yes
   when: firewall_backend == 'ufw'
 
 - name: Reset UFW rules
-  ufw:
+  community.general.ufw:
     state: reset
   when:
     - firewall_backend == 'ufw'
     - ufw_reset_on_apply | bool
 
 - name: Set UFW default incoming policy
-  ufw:
+  community.general.ufw:
     direction: incoming
     policy: "{{ ufw_default_incoming }}"
   when: firewall_backend == 'ufw'
 
 - name: Set UFW default outgoing policy
-  ufw:
+  community.general.ufw:
     direction: outgoing
     policy: "{{ ufw_default_outgoing }}"
   when: firewall_backend == 'ufw'
 
 - name: Set UFW default routed policy
-  ufw:
+  community.general.ufw:
     direction: routed
     policy: "{{ ufw_default_routed }}"
   when: firewall_backend == 'ufw'
 
 - name: Allow base UFW rules
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
@@ -45,7 +45,7 @@
   when: firewall_backend == 'ufw'
 
 - name: Allow extra UFW rules
-  ufw:
+  community.general.ufw:
     rule: allow
     port: "{{ item.port }}"
     proto: "{{ item.proto }}"
@@ -55,7 +55,7 @@
   when: firewall_backend == 'ufw'
 
 - name: Allow trusted networks
-  ufw:
+  community.general.ufw:
     rule: allow
     src: "{{ item }}"
     comment: "Trusted network"
@@ -65,7 +65,7 @@
     - ufw_trusted_networks | length > 0
 
 - name: Apply Docker UFW fix (prevent Docker bypassing UFW)
-  blockinfile:
+  ansible.builtin.blockinfile:
     path: /etc/ufw/after.rules
     marker: "# {mark} ANSIBLE MANAGED - Docker UFW fix"
     block: |
@@ -83,11 +83,11 @@
   notify: Reload UFW
 
 - name: Set UFW logging level
-  ufw:
+  community.general.ufw:
     logging: "{{ ufw_logging }}"
   when: firewall_backend == 'ufw'
 
 - name: Enable UFW
-  ufw:
+  community.general.ufw:
     state: enabled
   when: firewall_backend == 'ufw'

@@ -18,7 +18,7 @@
 
   pre_tasks:
     - name: Display monitoring setup target
-      debug:
+      ansible.builtin.debug:
         msg: "Installing monitoring agents on {{ inventory_hostname }} ({{ ansible_host }})"
 
   roles:
@@ -27,7 +27,7 @@
 
   post_tasks:
     - name: Verify node_exporter is responding
-      uri:
+      ansible.builtin.uri:
         url: "http://localhost:{{ node_exporter_port | default(9100) }}/metrics"
         timeout: 10
       register: ne_check
@@ -37,7 +37,7 @@
       changed_when: false
 
     - name: Display monitoring status
-      debug:
+      ansible.builtin.debug:
         msg:
           - "node_exporter: http://{{ ansible_host }}:{{ node_exporter_port | default(9100) }}/metrics"
           - "promtail: http://{{ ansible_host }}:{{ promtail_port | default(9080) }}/ready"

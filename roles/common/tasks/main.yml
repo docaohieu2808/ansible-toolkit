@@ -6,31 +6,31 @@
 
 ---
 - name: Update apt cache
-  apt:
+  ansible.builtin.apt:
     update_cache: yes
     cache_valid_time: 3600
 
 - name: Upgrade packages
-  apt:
+  ansible.builtin.apt:
     upgrade: safe
     autoremove: yes
     autoclean: yes
 
 - name: Install common packages
-  apt:
+  ansible.builtin.apt:
     name: "{{ common_packages }}"
     state: present
 
 - name: Set timezone
-  timezone:
+  community.general.timezone:
     name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
 
 - name: Set hostname
-  hostname:
+  ansible.builtin.hostname:
     name: "{{ inventory_hostname }}"
 
 - name: Update /etc/hosts
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: /etc/hosts
     regexp: '^127\.0\.1\.1'
     line: "127.0.1.1 {{ inventory_hostname }}"

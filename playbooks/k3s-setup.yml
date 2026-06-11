@@ -25,12 +25,12 @@
 
   pre_tasks:
     - name: Validate k3s_token is set
-      assert:
+      ansible.builtin.assert:
         that: k3s_token is defined and k3s_token != ""
         fail_msg: "k3s_token must be set via --extra-vars or group_vars (use ansible-vault)"
 
     - name: Display K3s setup target
-      debug:
+      ansible.builtin.debug:
         msg: "Setting up K3s {{ k3s_role | default('server') }} on {{ inventory_hostname }} ({{ ansible_host }})"
 
   roles:
@@ -39,17 +39,17 @@
 
   post_tasks:
     - name: Verify K3s node is Ready
-      command: k3s kubectl get nodes -o wide
+      ansible.builtin.command: k3s kubectl get nodes -o wide
       register: k3s_node_status
       changed_when: false
       when: k3s_role | default('server') == 'server'
 
     - name: Display K3s node status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ k3s_node_status.stdout_lines }}"
       when: k3s_role | default('server') == 'server'
 
     - name: Show kubeconfig path
-      debug:
+      ansible.builtin.debug:
         msg: "Kubeconfig available at /etc/rancher/k3s/k3s.yaml on {{ inventory_hostname }}"
       when: k3s_role | default('server') == 'server'

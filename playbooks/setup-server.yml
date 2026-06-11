@@ -19,20 +19,20 @@
     # System Update
     # =========================================================================
     - name: Update apt cache
-      apt:
+      ansible.builtin.apt:
         update_cache: yes
         cache_valid_time: 3600
       when: update_cache | bool
 
     - name: Upgrade all packages
-      apt:
+      ansible.builtin.apt:
         upgrade: safe
         autoremove: yes
         autoclean: yes
       register: apt_upgrade
 
     - name: Display upgrade results
-      debug:
+      ansible.builtin.debug:
         msg: "Packages upgraded: {{ apt_upgrade.stdout_lines | default([]) | length }}"
       when: apt_upgrade.changed
 
@@ -40,7 +40,7 @@
     # Install Essential Packages
     # =========================================================================
     - name: Install common packages
-      apt:
+      ansible.builtin.apt:
         name: "{{ common_packages }}"
         state: present
       vars:
@@ -65,18 +65,18 @@
     # Configure Timezone
     # =========================================================================
     - name: Set timezone
-      timezone:
+      community.general.timezone:
         name: "{{ timezone | default('Asia/Ho_Chi_Minh') }}"
 
     # =========================================================================
     # Configure Hostname
     # =========================================================================
     - name: Set hostname
-      hostname:
+      ansible.builtin.hostname:
         name: "{{ inventory_hostname }}"
 
     - name: Update /etc/hosts with hostname
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/hosts
         regexp: '^127\.0\.1\.1'
         line: "127.0.1.1 {{ inventory_hostname }}"
@@ -86,7 +86,7 @@
     # SSH Hardening (Basic)
     # =========================================================================
     - name: Ensure SSH directory exists
-      file:
+      ansible.builtin.file:
         path: /root/.ssh
         state: directory
         mode: '0700'
@@ -94,7 +94,7 @@
         group: root
 
     - name: Configure SSH - Disable password authentication
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?PasswordAuthentication"
         line: "PasswordAuthentication {{ ssh_password_authentication | default('no') }}"
@@ -102,7 +102,7 @@
       notify: Restart SSH
 
     - name: Configure SSH - Disable empty passwords
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "^#?PermitEmptyPasswords"
         line: "PermitEmptyPasswords no"
@@ -113,45 +113,45 @@
     # Configure Swap (if needed)
     # =========================================================================
     - name: Check if swap exists
-      command: swapon --show
+      ansible.builtin.command: swapon --show
       register: swap_check
       changed_when: false
       failed_when: false
 
     - name: Create swap file if not exists and memory < 4GB
+      when:
+        - swap_check.stdout == ""
+        - ansible_memtotal_mb < 4096
       block:
         - name: Create swap file
-          command: fallocate -l 2G /swapfile
+          ansible.builtin.command: fallocate -l 2G /swapfile
           args:
             creates: /swapfile
 
         - name: Set swap file permissions
-          file:
+          ansible.builtin.file:
             path: /swapfile
             mode: '0600'
 
         - name: Make swap file
-          command: mkswap /swapfile
+          ansible.builtin.command: mkswap /swapfile
           args:
             creates: /swapfile
 
         - name: Enable swap
-          command: swapon /swapfile
+          ansible.builtin.command: swapon /swapfile
 
         - name: Add swap to fstab
-          lineinfile:
+          ansible.builtin.lineinfile:
             path: /etc/fstab
             line: "/swapfile none swap sw 0 0"
             state: present
-      when:
-        - swap_check.stdout == ""
-        - ansible_memtotal_mb < 4096
 
     # =========================================================================
     # System Optimization
     # =========================================================================
     - name: Configure sysctl for better performance
-      sysctl:
+      ansible.posix.sysctl:
         name: "{{ item.name }}"
         value: "{{ item.value }}"
         state: present
@@ -163,6 +163,6 @@
 
   handlers:
     - name: Restart SSH
-      service:
+      ansible.builtin.systemd:
         name: sshd
         state: restarted

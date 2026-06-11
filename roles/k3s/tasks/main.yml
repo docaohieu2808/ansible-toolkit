@@ -4,7 +4,7 @@
 
 ---
 - name: Create K3s config directory
-  file:
+  ansible.builtin.file:
     path: "{{ k3s_config_dir }}"
     state: directory
     owner: root
@@ -12,7 +12,7 @@
     mode: '0755'
 
 - name: Deploy K3s config file
-  template:
+  ansible.builtin.template:
     src: k3s-server-config.yaml.j2
     dest: "{{ k3s_config_dir }}/config.yaml"
     owner: root
@@ -21,50 +21,50 @@
   when: k3s_role == 'server'
 
 - name: Download K3s install script
-  get_url:
+  ansible.builtin.get_url:
     url: https://get.k3s.io
     dest: /tmp/k3s-install.sh
     mode: '0750'
 
 - name: Install K3s server (control plane)
+  ansible.builtin.command: /tmp/k3s-install.sh
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ k3s_token }}"
     INSTALL_K3S_EXEC: "server"
-  command: /tmp/k3s-install.sh
   args:
     creates: "{{ k3s_install_dir }}/k3s"
   when: k3s_role == 'server'
   notify: Restart K3s
 
 - name: Install K3s agent (worker node)
+  ansible.builtin.command: /tmp/k3s-install.sh
   environment:
     INSTALL_K3S_VERSION: "{{ k3s_version }}"
     K3S_TOKEN: "{{ k3s_token }}"
     K3S_URL: "{{ k3s_server_url }}"
     INSTALL_K3S_EXEC: "agent"
-  command: /tmp/k3s-install.sh
   args:
     creates: "{{ k3s_install_dir }}/k3s"
   when: k3s_role == 'agent'
   notify: Restart K3s agent
 
 - name: Ensure K3s server service is started and enabled
-  systemd:
+  ansible.builtin.systemd:
     name: k3s
     state: started
     enabled: yes
   when: k3s_role == 'server'
 
 - name: Ensure K3s agent service is started and enabled
-  systemd:
+  ansible.builtin.systemd:
     name: k3s-agent
     state: started
     enabled: yes
   when: k3s_role == 'agent'
 
 - name: Wait for K3s node to be ready
-  command: k3s kubectl get nodes
+  ansible.builtin.command: k3s kubectl get nodes
   register: k3s_nodes
   retries: 20
   delay: 10
@@ -73,13 +73,13 @@
   when: k3s_role == 'server'
 
 - name: Set kubeconfig permissions
-  file:
+  ansible.builtin.file:
     path: /etc/rancher/k3s/k3s.yaml
     mode: "{{ k3s_kubeconfig_mode }}"
   when: k3s_role == 'server'
 
 - name: Fetch kubeconfig to local machine
-  fetch:
+  ansible.builtin.fetch:
     src: /etc/rancher/k3s/k3s.yaml
     dest: "{{ k3s_local_kubeconfig_path }}"
     flat: yes

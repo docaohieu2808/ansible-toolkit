@@ -16,12 +16,12 @@
 
   pre_tasks:
     - name: Verify Ansible version
-      assert:
+      ansible.builtin.assert:
         that: ansible_version.full is version('2.14', '>=')
         fail_msg: "Requires Ansible >= 2.14"
 
     - name: Display target hosts
-      debug:
+      ansible.builtin.debug:
         msg: "Provisioning {{ inventory_hostname }} ({{ ansible_host }})"
 
   roles:
@@ -56,5 +56,5 @@
 
   post_tasks:
     - name: Full provisioning completed
-      debug:
+      ansible.builtin.debug:
         msg: "Server {{ inventory_hostname }} fully provisioned"

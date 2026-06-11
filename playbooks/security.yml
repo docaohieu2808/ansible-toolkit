@@ -32,30 +32,30 @@
     # UFW Firewall
     # =========================================================================
     - name: Install UFW
-      apt:
+      ansible.builtin.apt:
         name: ufw
         state: present
         update_cache: yes
 
     - name: Reset UFW to default
-      ufw:
+      community.general.ufw:
         state: reset
       when: ufw_enabled | bool
 
     - name: Set UFW default incoming policy
-      ufw:
+      community.general.ufw:
         direction: incoming
         policy: "{{ ufw_default_incoming }}"
       when: ufw_enabled | bool
 
     - name: Set UFW default outgoing policy
-      ufw:
+      community.general.ufw:
         direction: outgoing
         policy: "{{ ufw_default_outgoing }}"
       when: ufw_enabled | bool
 
     - name: Allow SSH through UFW
-      ufw:
+      community.general.ufw:
         rule: allow
         port: "{{ item.port }}"
         proto: "{{ item.proto }}"
@@ -63,14 +63,14 @@
       when: ufw_enabled | bool
 
     - name: Allow Docker ports (internal)
-      ufw:
+      community.general.ufw:
         rule: allow
         src: 172.16.0.0/12
         comment: "Docker internal networks"
       when: ufw_enabled | bool
 
     - name: Enable UFW
-      ufw:
+      community.general.ufw:
         state: enabled
       when: ufw_enabled | bool
 
@@ -78,13 +78,13 @@
     # Fail2ban
     # =========================================================================
     - name: Install Fail2ban
-      apt:
+      ansible.builtin.apt:
         name: fail2ban
         state: present
       when: fail2ban_enabled | bool
 
     - name: Configure Fail2ban jail.local
-      copy:
+      ansible.builtin.copy:
         content: |
           [DEFAULT]
           bantime = {{ fail2ban_bantime }}
@@ -106,7 +106,7 @@
       when: fail2ban_enabled | bool
 
     - name: Ensure Fail2ban is started and enabled
-      systemd:
+      ansible.builtin.systemd:
         name: fail2ban
         state: started
         enabled: yes
@@ -116,14 +116,14 @@
     # Automatic Security Updates
     # =========================================================================
     - name: Install unattended-upgrades
-      apt:
+      ansible.builtin.apt:
         name:
           - unattended-upgrades
           - apt-listchanges
         state: present
 
     - name: Configure unattended-upgrades
-      copy:
+      ansible.builtin.copy:
         content: |
           APT::Periodic::Update-Package-Lists "1";
           APT::Periodic::Download-Upgradeable-Packages "1";
@@ -133,7 +133,7 @@
         mode: '0644'
 
     - name: Configure unattended-upgrades settings
-      copy:
+      ansible.builtin.copy:
         content: |
           Unattended-Upgrade::Allowed-Origins {
               "${distro_id}:${distro_codename}";
@@ -154,7 +154,7 @@
     # SSH Security
     # =========================================================================
     - name: Configure SSH security settings
-      lineinfile:
+      ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
         regexp: "{{ item.regexp }}"
         line: "{{ item.line }}"
@@ -172,34 +172,34 @@
     # Verify Security Status
     # =========================================================================
     - name: Get UFW status
-      command: ufw status verbose
+      ansible.builtin.command: ufw status verbose
       register: ufw_status
       changed_when: false
       when: ufw_enabled | bool
 
     - name: Display UFW status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ ufw_status.stdout_lines }}"
       when: ufw_enabled | bool
 
     - name: Get Fail2ban status
-      command: fail2ban-client status
+      ansible.builtin.command: fail2ban-client status
       register: fail2ban_status
       changed_when: false
       when: fail2ban_enabled | bool
 
     - name: Display Fail2ban status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ fail2ban_status.stdout_lines }}"
       when: fail2ban_enabled | bool
 
   handlers:
     - name: Restart SSH
-      systemd:
+      ansible.builtin.systemd:
         name: sshd
         state: restarted
 
     - name: Restart Fail2ban
-      systemd:
+      ansible.builtin.systemd:
         name: fail2ban
         state: restarted

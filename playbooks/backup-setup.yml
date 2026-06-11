@@ -21,7 +21,7 @@
 
   pre_tasks:
     - name: Validate required backup credentials
-      assert:
+      ansible.builtin.assert:
         that:
           - backup_restic_password is defined and backup_restic_password != ""
           - (backup_s3_bucket is defined and backup_s3_bucket != "") or
@@ -31,7 +31,7 @@
           backup_s3_bucket (or backup_gcs_bucket) via ansible-vault.
 
     - name: Display backup setup target
-      debug:
+      ansible.builtin.debug:
         msg:
           - "Configuring backups on {{ inventory_hostname }} ({{ ansible_host }})"
           - "Backend: {{ backup_backend | default('s3') }}"
@@ -44,21 +44,21 @@
 
   post_tasks:
     - name: Trigger a test backup run
-      command: /usr/local/bin/restic-backup
+      ansible.builtin.command: /usr/local/bin/restic-backup
       register: test_backup
       changed_when: true
       when: run_test_backup | default(false) | bool
 
     - name: Display test backup result
-      debug:
+      ansible.builtin.debug:
         msg: "{{ test_backup.stdout_lines }}"
       when: run_test_backup | default(false) | bool
 
     - name: Verify backup timer is active
-      command: systemctl status restic-backup.timer
+      ansible.builtin.command: systemctl status restic-backup.timer
       register: timer_status
       changed_when: false
 
     - name: Display timer status
-      debug:
+      ansible.builtin.debug:
         msg: "{{ timer_status.stdout_lines }}"

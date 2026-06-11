@@ -4,12 +4,12 @@
 
 ---
 - name: Validate required variable app_name
-  assert:
+  ansible.builtin.assert:
     that: app_name != ""
     fail_msg: "app_name must be set"
 
 - name: Create application directory
-  file:
+  ansible.builtin.file:
     path: "{{ app_dir }}"
     state: directory
     owner: root
@@ -17,7 +17,7 @@
     mode: '0755'
 
 - name: Copy .env file to app directory
-  copy:
+  ansible.builtin.copy:
     src: "{{ app_env_file }}"
     dest: "{{ app_dir }}/.env"
     owner: root
@@ -26,7 +26,7 @@
   when: app_env_file != ""
 
 - name: Write extra env vars into .env
-  lineinfile:
+  ansible.builtin.lineinfile:
     path: "{{ app_dir }}/.env"
     line: "{{ item.key }}={{ item.value }}"
     regexp: "^{{ item.key }}="
@@ -56,7 +56,7 @@
     services: "{{ app_services if app_services | length > 0 else omit }}"
 
 - name: Wait for application health endpoint
-  uri:
+  ansible.builtin.uri:
     url: "{{ app_healthcheck_url }}"
     status_code: 200
     timeout: 10
