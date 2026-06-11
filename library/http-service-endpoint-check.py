@@ -34,9 +34,9 @@ author:
 '''
 
 EXAMPLES = r'''
-- name: Check Jenkins login page
+- name: Check service login page
   service_endpoint_check:
-    url: https://jenkins.docaohieu.com/login
+    url: https://example.com/login
     expected_status: 200
     timeout: 10
   register: result

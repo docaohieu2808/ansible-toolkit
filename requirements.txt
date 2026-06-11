@@ -1,5 +1,5 @@
 # Python dependencies for control node
-ansible>=2.14
+ansible-core>=2.14
 ansible-lint>=6.0
 jmespath>=1.0
 netaddr>=0.10
