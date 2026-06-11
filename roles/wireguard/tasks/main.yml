@@ -4,7 +4,7 @@
 
 ---
 - name: Install WireGuard packages
-  apt:
+  ansible.builtin.apt:
     name:
       - wireguard
       - wireguard-tools
@@ -13,7 +13,7 @@
     update_cache: yes
 
 - name: Enable IP forwarding
-  sysctl:
+  ansible.posix.sysctl:
     name: "{{ item }}"
     value: "1"
     state: present
@@ -23,30 +23,71 @@
     - net.ipv6.conf.all.forwarding
   when: wireguard_ip_forward | bool
 
-- name: Generate WireGuard server private key
-  command: wg genkey
-  register: wg_private_key_generated
-  changed_when: false
+# ---------------------------------------------------------------------------
+# Private key: use vault-provided key when set; otherwise read the existing
+# key from disk (idempotent) or generate a new one only on first run.
+# Never regenerate an existing key — doing so rewrites the config and
+# restarts wg0, which severs all peers (fleet routing goes through wg0).
+# ---------------------------------------------------------------------------
+- name: Check for existing WireGuard private key on host
+  ansible.builtin.stat:
+    path: "{{ wireguard_config_dir }}/server_private_key"
+  register: _wg_key_stat
   when: wireguard_server_private_key == ""
+
+- name: Read existing WireGuard private key from host
+  ansible.builtin.slurp:
+    src: "{{ wireguard_config_dir }}/server_private_key"
+  register: _wg_key_slurp
+  when:
+    - wireguard_server_private_key == ""
+    - _wg_key_stat.stat.exists
+  no_log: true
+
+- name: Generate WireGuard server private key (first run only)
+  ansible.builtin.command: wg genkey
+  register: _wg_key_generated
+  changed_when: true
+  when:
+    - wireguard_server_private_key == ""
+    - not _wg_key_stat.stat.exists
   no_log: true
 
 - name: Set server private key fact
-  set_fact:
-    _wg_private_key: "{{ wireguard_server_private_key if wireguard_server_private_key != '' else wg_private_key_generated.stdout }}"
+  ansible.builtin.set_fact:
+    _wg_private_key: >-
+      {{
+        wireguard_server_private_key if wireguard_server_private_key != ''
+        else (_wg_key_slurp.content | b64decode | trim
+              if _wg_key_stat.stat.exists
+              else _wg_key_generated.stdout)
+      }}
+  no_log: true
+
+- name: Persist generated private key to disk (first run only)
+  ansible.builtin.copy:
+    content: "{{ _wg_private_key }}"
+    dest: "{{ wireguard_config_dir }}/server_private_key"
+    owner: root
+    group: root
+    mode: '0600'
+  when:
+    - wireguard_server_private_key == ""
+    - not _wg_key_stat.stat.exists
   no_log: true
 
 - name: Derive server public key
-  shell: "echo '{{ _wg_private_key }}' | wg pubkey"
+  ansible.builtin.shell: "wg pubkey <<< '{{ _wg_private_key }}'"
   register: wg_public_key_derived
   changed_when: false
   no_log: true
 
 - name: Set server public key fact
-  set_fact:
+  ansible.builtin.set_fact:
     _wg_public_key: "{{ wg_public_key_derived.stdout }}"
 
 - name: Ensure WireGuard config directory exists
-  file:
+  ansible.builtin.file:
     path: "{{ wireguard_config_dir }}"
     state: directory
     mode: '0700'
@@ -54,7 +95,7 @@
     group: root
 
 - name: Deploy WireGuard interface config
-  template:
+  ansible.builtin.template:
     src: wg-interface-config.conf.j2
     dest: "{{ wireguard_config_dir }}/{{ wireguard_interface }}.conf"
     mode: '0600'
@@ -63,12 +104,12 @@
   notify: Restart WireGuard
 
 - name: Enable and start WireGuard interface
-  systemd:
+  ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
     state: started
     enabled: yes
     daemon_reload: yes
 
 - name: Display WireGuard server public key
-  debug:
+  ansible.builtin.debug:
     msg: "WireGuard server public key: {{ _wg_public_key }}"

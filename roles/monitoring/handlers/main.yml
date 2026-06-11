@@ -4,15 +4,15 @@
 
 ---
 - name: Reload systemd
-  systemd:
+  ansible.builtin.systemd:
     daemon_reload: yes
 
 - name: Restart node_exporter
-  systemd:
+  ansible.builtin.systemd:
     name: node_exporter
     state: restarted
 
 - name: Restart promtail
-  systemd:
+  ansible.builtin.systemd:
     name: promtail
     state: restarted

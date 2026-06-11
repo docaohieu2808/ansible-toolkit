@@ -3,19 +3,23 @@
 # =============================================================================
 
 ---
+- name: Set architecture map fact
+  ansible.builtin.set_fact:
+    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armv7'} [ansible_architecture] | default('amd64') }}"
+
 - name: Download restic binary
-  get_url:
-    url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_amd64.bz2"
-    dest: "/tmp/restic_{{ restic_version }}.bz2"
+  ansible.builtin.get_url:
+    url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_{{ _arch }}.bz2"
+    dest: "/tmp/restic_{{ restic_version }}_{{ _arch }}.bz2"
     mode: '0644'
 
 - name: Decompress restic binary
-  shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}.bz2 && mv /tmp/restic_{{ restic_version }} {{ restic_install_dir }}/restic && chmod 0755 {{ restic_install_dir }}/restic"
+  ansible.builtin.shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}_{{ _arch }}.bz2 && mv /tmp/restic_{{ restic_version }}_{{ _arch }} {{ restic_install_dir }}/restic && chmod 0755 {{ restic_install_dir }}/restic"
   args:
     creates: "{{ restic_install_dir }}/restic"
 
 - name: Create restic config and cache directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: root
@@ -26,7 +30,7 @@
     - "{{ restic_cache_dir }}"
 
 - name: Deploy restic environment file (credentials)
-  template:
+  ansible.builtin.template:
     src: restic-environment-credentials.env.j2
     dest: "{{ restic_config_dir }}/env"
     owner: root
@@ -34,7 +38,7 @@
     mode: '0600'
 
 - name: Deploy restic excludes file
-  template:
+  ansible.builtin.template:
     src: restic-backup-excludes.txt.j2
     dest: "{{ restic_config_dir }}/excludes.txt"
     owner: root
@@ -42,7 +46,7 @@
     mode: '0640'
 
 - name: Initialize restic repository (idempotent)
-  shell: |
+  ansible.builtin.shell: |
     set -a; source {{ restic_config_dir }}/env; set +a
     restic --cache-dir {{ restic_cache_dir }} snapshots 2>/dev/null || \
     restic --cache-dir {{ restic_cache_dir }} init
@@ -50,7 +54,7 @@
   changed_when: "'created restic repository' in restic_init.stdout"
 
 - name: Deploy restic backup script
-  template:
+  ansible.builtin.template:
     src: restic-backup-run.sh.j2
     dest: /usr/local/bin/restic-backup
     owner: root
@@ -58,21 +62,21 @@
     mode: '0750'
 
 - name: Deploy restic backup systemd service unit
-  template:
+  ansible.builtin.template:
     src: restic-backup-systemd.service.j2
     dest: /etc/systemd/system/restic-backup.service
     mode: '0644'
   notify: Reload systemd
 
 - name: Deploy restic backup systemd timer unit
-  template:
+  ansible.builtin.template:
     src: restic-backup-systemd.timer.j2
     dest: /etc/systemd/system/restic-backup.timer
     mode: '0644'
   notify: Reload systemd
 
 - name: Enable and start restic backup timer
-  systemd:
+  ansible.builtin.systemd:
     name: restic-backup.timer
     state: started
     enabled: yes

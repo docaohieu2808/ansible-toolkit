@@ -3,18 +3,23 @@
 # =============================================================================
 
 ---
+# Map ansible_architecture to the go/release arch string used by upstream tarballs
+- name: Set architecture map fact
+  ansible.builtin.set_fact:
+    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armv7'} [ansible_architecture] | default('amd64') }}"
+
 # ---------------------------------------------------------------------------
 # Node Exporter
 # ---------------------------------------------------------------------------
 - name: Create node_exporter system user
-  user:
+  ansible.builtin.user:
     name: "{{ node_exporter_user }}"
     system: yes
     shell: /usr/sbin/nologin
     create_home: no
 
 - name: Create node_exporter textfile collector directory
-  file:
+  ansible.builtin.file:
     path: "{{ node_exporter_textfile_dir }}"
     state: directory
     owner: "{{ node_exporter_user }}"
@@ -22,20 +27,20 @@
     mode: '0755'
 
 - name: Download node_exporter binary
-  get_url:
-    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
-    dest: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+  ansible.builtin.get_url:
+    url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ _arch }}.tar.gz"
+    dest: "/tmp/node_exporter-{{ node_exporter_version }}-{{ _arch }}.tar.gz"
     mode: '0644'
 
 - name: Extract node_exporter
-  unarchive:
-    src: "/tmp/node_exporter-{{ node_exporter_version }}.tar.gz"
+  ansible.builtin.unarchive:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}-{{ _arch }}.tar.gz"
     dest: /tmp/
     remote_src: yes
 
 - name: Install node_exporter binary
-  copy:
-    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-{{ _arch }}/node_exporter"
     dest: "{{ node_exporter_install_dir }}/node_exporter"
     owner: root
     group: root
@@ -44,7 +49,7 @@
   notify: Restart node_exporter
 
 - name: Deploy node_exporter systemd service
-  template:
+  ansible.builtin.template:
     src: node-exporter-systemd.service.j2
     dest: /etc/systemd/system/node_exporter.service
     mode: '0644'
@@ -53,7 +58,7 @@
     - Restart node_exporter
 
 - name: Ensure node_exporter is started and enabled
-  systemd:
+  ansible.builtin.systemd:
     name: node_exporter
     state: started
     enabled: yes
@@ -63,7 +68,7 @@
 # Promtail
 # ---------------------------------------------------------------------------
 - name: Create promtail system user
-  user:
+  ansible.builtin.user:
     name: "{{ promtail_user }}"
     system: yes
     shell: /usr/sbin/nologin
@@ -72,7 +77,7 @@
     create_home: no
 
 - name: Create promtail config and positions directories
-  file:
+  ansible.builtin.file:
     path: "{{ item }}"
     state: directory
     owner: "{{ promtail_user }}"
@@ -83,20 +88,20 @@
     - "{{ promtail_positions_dir }}"
 
 - name: Download promtail binary
-  get_url:
-    url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-amd64.zip"
-    dest: "/tmp/promtail-{{ promtail_version }}.zip"
+  ansible.builtin.get_url:
+    url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-{{ _arch }}.zip"
+    dest: "/tmp/promtail-{{ promtail_version }}-{{ _arch }}.zip"
     mode: '0644'
 
 - name: Extract promtail binary
-  unarchive:
-    src: "/tmp/promtail-{{ promtail_version }}.zip"
+  ansible.builtin.unarchive:
+    src: "/tmp/promtail-{{ promtail_version }}-{{ _arch }}.zip"
     dest: /tmp/
     remote_src: yes
 
 - name: Install promtail binary
-  copy:
-    src: /tmp/promtail-linux-amd64
+  ansible.builtin.copy:
+    src: "/tmp/promtail-linux-{{ _arch }}"
     dest: /usr/local/bin/promtail
     owner: root
     group: root
@@ -105,7 +110,7 @@
   notify: Restart promtail
 
 - name: Deploy promtail configuration
-  template:
+  ansible.builtin.template:
     src: promtail-config.yml.j2
     dest: "{{ promtail_config_dir }}/config.yml"
     owner: "{{ promtail_user }}"
@@ -114,7 +119,7 @@
   notify: Restart promtail
 
 - name: Deploy promtail systemd service
-  template:
+  ansible.builtin.template:
     src: promtail-systemd.service.j2
     dest: /etc/systemd/system/promtail.service
     mode: '0644'
@@ -123,7 +128,7 @@
     - Restart promtail
 
 - name: Ensure promtail is started and enabled
-  systemd:
+  ansible.builtin.systemd:
     name: promtail
     state: started
     enabled: yes
