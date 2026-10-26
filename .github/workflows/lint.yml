@@ -2,21 +2,50 @@ name: lint
 on:
   push:
   pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, Monday 02:00 UTC: catches rot in upstream releases, collections and runner images
+    - cron: "0 2 * * 1"
+
+permissions:
+  contents: read
+
 jobs:
   ansible:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with: { python-version: "3.13" }
       - name: Install Ansible and collections
         run: |
-          pip install "ansible-core>=2.17,<2.20" ansible-lint jmespath netaddr
+          pip install -r requirements.txt
           ansible-galaxy collection install -r requirements.yml
       - name: ansible-lint (production profile)
         run: ansible-lint
       - name: Playbook syntax
         run: |
           for p in playbooks/*.yml; do
+            echo "::group::$p"
             ansible-playbook --syntax-check -i inventories/_examples/single-server.example.yml "$p"
+            echo "::endgroup::"
           done
+
+  molecule:
+    name: molecule (${{ matrix.role }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [common, docker, monitoring]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with: { python-version: "3.13" }
+      - name: Install Molecule and collections
+        run: |
+          pip install -r requirements.txt molecule "molecule-plugins[docker]"
+          ansible-galaxy collection install -r requirements.yml
+      - name: Converge, idempotence and verify in a systemd container
+        working-directory: roles/${{ matrix.role }}
+        run: molecule test

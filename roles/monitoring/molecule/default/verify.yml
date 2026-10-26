@@ -1,0 +1,36 @@
+---
+- name: Verify monitoring role
+  hosts: all
+  gather_facts: false
+  become: true
+
+  tasks:
+    - name: Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: node_exporter and alloy services are running
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['node_exporter.service'].state == 'running'
+          - ansible_facts.services['alloy.service'].state == 'running'
+
+    - name: node_exporter serves metrics
+      ansible.builtin.uri:
+        url: http://127.0.0.1:9100/metrics
+        return_content: true
+      register: ne_metrics
+      retries: 5
+      delay: 3
+      until: ne_metrics.status == 200
+
+    - name: node_exporter exposes node_ metrics
+      ansible.builtin.assert:
+        that: "'node_uname_info' in ne_metrics.content"
+
+    - name: Alloy reports ready
+      ansible.builtin.uri:
+        url: http://127.0.0.1:12345/-/ready
+      register: alloy_ready
+      retries: 10
+      delay: 3
+      until: alloy_ready.status == 200
