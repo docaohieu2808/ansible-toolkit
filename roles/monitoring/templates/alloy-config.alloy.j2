@@ -1,0 +1,27 @@
+// =============================================================================
+// Grafana Alloy configuration - managed by Ansible, DO NOT EDIT MANUALLY
+// =============================================================================
+
+local.file_match "logs" {
+  path_targets = [
+{% for source in alloy_log_sources %}
+    {
+      "__path__" = {{ source.path | to_json }},
+{% for key, value in source.labels.items() %}
+      {{ key | to_json }} = {{ value | to_json }},
+{% endfor %}
+    },
+{% endfor %}
+  ]
+}
+
+loki.source.file "logs" {
+  targets    = local.file_match.logs.targets
+  forward_to = [loki.write.default.receiver]
+}
+
+loki.write "default" {
+  endpoint {
+    url = {{ alloy_loki_url | to_json }}
+  }
+}

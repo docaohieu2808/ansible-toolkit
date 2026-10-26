@@ -1,5 +1,5 @@
 # =============================================================================
-# Role: Monitoring - Tasks (node_exporter + promtail)
+# Role: Monitoring - Tasks (node_exporter + Grafana Alloy)
 # =============================================================================
 
 ---
@@ -30,6 +30,7 @@
   ansible.builtin.get_url:
     url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-{{ _arch }}.tar.gz"
     dest: "/tmp/node_exporter-{{ node_exporter_version }}-{{ _arch }}.tar.gz"
+    checksum: "sha256:https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/sha256sums.txt"
     mode: "0644"
 
 - name: Extract node_exporter
@@ -65,71 +66,91 @@
     daemon_reload: true
 
 # ---------------------------------------------------------------------------
-# Promtail
+# Grafana Alloy
 # ---------------------------------------------------------------------------
-- name: Create promtail system user
+- name: Assert Alloy supports this architecture
+  ansible.builtin.assert:
+    that: _arch in ['amd64', 'arm64']
+    fail_msg: "Grafana Alloy publishes linux binaries for amd64 and arm64 only (detected {{ ansible_architecture }})"
+    quiet: true
+
+- name: Install unzip (needed to unpack the Alloy release)
+  ansible.builtin.apt:
+    name: unzip
+    state: present
+    update_cache: true
+
+- name: Create alloy system user
   ansible.builtin.user:
-    name: "{{ promtail_user }}"
+    name: "{{ alloy_user }}"
     system: true
     shell: /usr/sbin/nologin
     groups: adm
     append: true
     create_home: false
 
-- name: Create promtail config and positions directories
+- name: Create alloy config and storage directories
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: "{{ promtail_user }}"
-    group: "{{ promtail_user }}"
+    owner: "{{ alloy_user }}"
+    group: "{{ alloy_user }}"
     mode: "0755"
   loop:
-    - "{{ promtail_config_dir }}"
-    - "{{ promtail_positions_dir }}"
+    - "{{ alloy_config_dir }}"
+    - "{{ alloy_storage_dir }}"
 
-- name: Download promtail binary
+- name: Download Alloy release (checksum verified)
   ansible.builtin.get_url:
-    url: "https://github.com/grafana/loki/releases/download/v{{ promtail_version }}/promtail-linux-{{ _arch }}.zip"
-    dest: "/tmp/promtail-{{ promtail_version }}-{{ _arch }}.zip"
+    url: "https://github.com/grafana/alloy/releases/download/v{{ alloy_version }}/alloy-linux-{{ _arch }}.zip"
+    dest: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}.zip"
+    checksum: "sha256:https://github.com/grafana/alloy/releases/download/v{{ alloy_version }}/SHA256SUMS"
     mode: "0644"
 
-- name: Extract promtail binary
-  ansible.builtin.unarchive:
-    src: "/tmp/promtail-{{ promtail_version }}-{{ _arch }}.zip"
-    dest: /tmp/
-    remote_src: true
+- name: Create Alloy extraction directory
+  ansible.builtin.file:
+    path: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}"
+    state: directory
+    mode: "0755"
 
-- name: Install promtail binary
+- name: Extract Alloy binary
+  ansible.builtin.unarchive:
+    src: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}.zip"
+    dest: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}/"
+    remote_src: true
+    creates: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}/alloy-linux-{{ _arch }}"
+
+- name: Install Alloy binary
   ansible.builtin.copy:
-    src: "/tmp/promtail-linux-{{ _arch }}"
-    dest: /usr/local/bin/promtail
+    src: "/tmp/alloy-{{ alloy_version }}-{{ _arch }}/alloy-linux-{{ _arch }}"
+    dest: "{{ alloy_install_dir }}/alloy"
     owner: root
     group: root
     mode: "0755"
     remote_src: true
-  notify: Restart promtail
+  notify: Restart alloy
 
-- name: Deploy promtail configuration
+- name: Deploy Alloy configuration
   ansible.builtin.template:
-    src: promtail-config.yml.j2
-    dest: "{{ promtail_config_dir }}/config.yml"
-    owner: "{{ promtail_user }}"
-    group: "{{ promtail_user }}"
+    src: alloy-config.alloy.j2
+    dest: "{{ alloy_config_dir }}/config.alloy"
+    owner: "{{ alloy_user }}"
+    group: "{{ alloy_user }}"
     mode: "0640"
-  notify: Restart promtail
+  notify: Restart alloy
 
-- name: Deploy promtail systemd service
+- name: Deploy Alloy systemd service
   ansible.builtin.template:
-    src: promtail-systemd.service.j2
-    dest: /etc/systemd/system/promtail.service
+    src: alloy-systemd.service.j2
+    dest: /etc/systemd/system/alloy.service
     mode: "0644"
   notify:
     - Reload systemd
-    - Restart promtail
+    - Restart alloy
 
-- name: Ensure promtail is started and enabled
+- name: Ensure Alloy is started and enabled
   ansible.builtin.systemd:
-    name: promtail
+    name: alloy
     state: started
     enabled: true
     daemon_reload: true

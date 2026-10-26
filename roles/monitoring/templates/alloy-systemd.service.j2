@@ -1,0 +1,19 @@
+[Unit]
+Description=Grafana Alloy telemetry collector
+Documentation=https://grafana.com/docs/alloy/latest/
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ alloy_user }}
+Group={{ alloy_user }}
+Type=simple
+ExecStart={{ alloy_install_dir }}/alloy run \
+  --server.http.listen-addr={{ alloy_listen_address }}:{{ alloy_port }} \
+  --storage.path={{ alloy_storage_dir }} \
+  {{ alloy_config_dir }}/config.alloy
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target

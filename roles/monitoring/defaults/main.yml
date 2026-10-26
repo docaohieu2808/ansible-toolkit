@@ -4,7 +4,7 @@
 
 ---
 # Node Exporter
-node_exporter_version: "1.7.0"
+node_exporter_version: "1.12.1"
 node_exporter_port: 9100
 node_exporter_user: node_exporter
 node_exporter_install_dir: /usr/local/bin
@@ -15,18 +15,24 @@ node_exporter_enabled_collectors:
   - filesystem
 node_exporter_disabled_collectors: []
 
-# Promtail
-promtail_version: "2.9.3"
-promtail_port: 9080
-promtail_config_dir: /etc/promtail
-promtail_positions_dir: /var/lib/promtail
-promtail_user: promtail
+# Grafana Alloy (replaces Promtail, which reached end of life in 03/2026).
+# Release assets exist for amd64 and arm64 only. The role verifies the zip
+# against the SHA256SUMS file published with the release.
+alloy_version: "1.21.2"
+alloy_install_dir: /usr/local/bin
+alloy_config_dir: /etc/alloy
+alloy_storage_dir: /var/lib/alloy
+alloy_user: alloy
+# Alloy UI / metrics / readiness endpoint. Bound to loopback by default.
+alloy_listen_address: "127.0.0.1"
+alloy_port: 12345
 
 # Loki endpoint - set per environment
-promtail_loki_url: "http://loki:3100/loki/api/v1/push"
+alloy_loki_url: "http://loki:3100/loki/api/v1/push"
 
-# Log paths to scrape
-promtail_scrape_configs:
+# Log files to tail and ship to Loki. Same shape the old promtail_scrape_configs
+# used: job_name is informational, path may contain globs, labels become Loki labels.
+alloy_log_sources:
   - job_name: syslog
     path: /var/log/syslog
     labels:
