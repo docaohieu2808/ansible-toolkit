@@ -16,8 +16,8 @@
     direction: "{{ item.direction }}"
     policy: "{{ item.policy }}"
   loop:
-    - { direction: 'incoming', policy: 'deny' }
-    - { direction: 'outgoing', policy: 'allow' }
+    - { direction: "incoming", policy: "deny" }
+    - { direction: "outgoing", policy: "allow" }
 
 - name: Allow common ports through UFW
   community.general.ufw:
@@ -45,14 +45,14 @@
   ansible.builtin.template:
     src: jail.local.j2
     dest: /etc/fail2ban/jail.local
-    mode: '0644'
+    mode: "0644"
   notify: Restart Fail2ban
 
 - name: Ensure Fail2ban is running
   ansible.builtin.systemd:
     name: fail2ban
     state: started
-    enabled: yes
+    enabled: true
 
 # Auto security updates
 - name: Install unattended-upgrades
@@ -68,4 +68,4 @@
       APT::Periodic::Update-Package-Lists "1";
       APT::Periodic::Unattended-Upgrade "1";
     dest: /etc/apt/apt.conf.d/20auto-upgrades
-    mode: '0644'
+    mode: "0644"

@@ -10,14 +10,14 @@
       - wireguard-tools
       - iptables
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Enable IP forwarding
   ansible.posix.sysctl:
     name: "{{ item }}"
     value: "1"
     state: present
-    reload: yes
+    reload: true
   loop:
     - net.ipv4.ip_forward
     - net.ipv6.conf.all.forwarding
@@ -70,7 +70,7 @@
     dest: "{{ wireguard_config_dir }}/server_private_key"
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
   when:
     - wireguard_server_private_key == ""
     - not _wg_key_stat.stat.exists
@@ -90,7 +90,7 @@
   ansible.builtin.file:
     path: "{{ wireguard_config_dir }}"
     state: directory
-    mode: '0700'
+    mode: "0700"
     owner: root
     group: root
 
@@ -98,7 +98,7 @@
   ansible.builtin.template:
     src: wg-interface-config.conf.j2
     dest: "{{ wireguard_config_dir }}/{{ wireguard_interface }}.conf"
-    mode: '0600'
+    mode: "0600"
     owner: root
     group: root
   notify: Restart WireGuard
@@ -107,8 +107,8 @@
   ansible.builtin.systemd:
     name: "wg-quick@{{ wireguard_interface }}"
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
 
 - name: Display WireGuard server public key
   ansible.builtin.debug:

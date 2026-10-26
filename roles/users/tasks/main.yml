@@ -9,10 +9,10 @@
     comment: "{{ item.comment | default('') }}"
     shell: "{{ item.shell | default(users_default_shell) }}"
     groups: "{{ item.groups | default([]) | join(',') }}"
-    append: yes
+    append: true
     password: "{{ item.password | default('!') }}"
     state: "{{ item.state | default('present') }}"
-    create_home: yes
+    create_home: true
   loop: "{{ users_list }}"
   loop_control:
     label: "{{ item.name }}"
@@ -24,7 +24,7 @@
     state: directory
     owner: "{{ item.name }}"
     group: "{{ item.name }}"
-    mode: '0700'
+    mode: "0700"
   loop: "{{ users_list }}"
   loop_control:
     label: "{{ item.name }}"
@@ -49,8 +49,8 @@
     dest: "/etc/sudoers.d/{{ item.name }}"
     owner: root
     group: root
-    mode: '0440'
-    validate: 'visudo -cf %s'
+    mode: "0440"
+    validate: "visudo -cf %s"
   loop: "{{ users_list | selectattr('sudo', 'defined') | selectattr('sudo') | list }}"
   loop_control:
     label: "{{ item.name }}"
@@ -67,7 +67,7 @@
 - name: Lock password login for key-only users
   ansible.builtin.user:
     name: "{{ item.name }}"
-    password_lock: yes
+    password_lock: true
   loop: "{{ users_list }}"
   loop_control:
     label: "{{ item.name }}"
@@ -80,5 +80,5 @@
   ansible.builtin.user:
     name: "{{ item }}"
     state: absent
-    remove: yes
+    remove: true
   loop: "{{ users_remove }}"

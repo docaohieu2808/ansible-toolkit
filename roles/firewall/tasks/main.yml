@@ -7,7 +7,7 @@
   ansible.builtin.apt:
     name: ufw
     state: present
-    update_cache: yes
+    update_cache: true
   when: firewall_backend == 'ufw'
 
 - name: Reset UFW rules

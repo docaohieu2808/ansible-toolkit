@@ -3,9 +3,9 @@
 profile: production
 
 skip_list:
-  - role-name              # role names with dashes are fine
+  - role-name # role names with dashes are fine
   - var-naming[no-role-prefix]
-  - yaml[line-length]      # long lines OK in our jinja templates
+  - yaml[line-length] # long lines OK in our jinja templates
 
 warn_list:
   - command-instead-of-module

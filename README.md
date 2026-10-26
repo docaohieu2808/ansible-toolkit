@@ -1,5 +1,7 @@
 # Ansible Toolkit
 
+[![lint](https://github.com/docaohieu2808/ansible-toolkit/actions/workflows/lint.yml/badge.svg)](https://github.com/docaohieu2808/ansible-toolkit/actions/workflows/lint.yml)
+
 Reusable Ansible roles + playbooks for provisioning Linux servers (Docker, k3s, monitoring, security hardening, backup).
 
 Designed to be a **toolkit** — bring your own inventory.
@@ -56,7 +58,7 @@ ansible-playbook -i inventories/production playbooks/full-provision.yml
 | nginx-proxy | Nginx reverse proxy + certbot SSL |
 | security | SSH hardening, fail2ban, unattended-upgrades |
 | firewall | UFW rules + Docker UFW bypass fix |
-| wireguard | WireGuard VPN server setup |
+| wireguard | WireGuard VPN server setup (legacy: my own fleet has since moved to Tailscale) |
 | users | User management + SSH authorized keys |
 | backup | Restic-based backup to S3/GCS |
 | monitoring | Node exporter + promtail (amd64 + arm64) |
@@ -92,3 +94,12 @@ Oracle Cloud ARM (Neoverse-N1 / `aarch64`) is fully supported.
 ## License
 
 MIT
+
+## Checks
+
+Every push runs `ansible-lint` with the `production` profile and `ansible-playbook --syntax-check` on every
+playbook (`.github/workflows/lint.yml`).
+
+## License
+
+MIT, see [LICENSE](LICENSE).

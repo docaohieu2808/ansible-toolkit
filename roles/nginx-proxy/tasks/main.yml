@@ -10,13 +10,13 @@
       - certbot
       - python3-certbot-nginx
     state: present
-    update_cache: yes
+    update_cache: true
 
 - name: Ensure nginx sites-available and sites-enabled dirs exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    mode: '0755'
+    mode: "0755"
   loop:
     - /etc/nginx/sites-available
     - /etc/nginx/sites-enabled
@@ -25,8 +25,8 @@
   ansible.builtin.template:
     src: nginx-global-config.conf.j2
     dest: /etc/nginx/nginx.conf
-    mode: '0644'
-    validate: 'nginx -t -c %s'
+    mode: "0644"
+    validate: "nginx -t -c %s"
   notify: Reload nginx
 
 - name: Remove default nginx site
@@ -39,7 +39,7 @@
   ansible.builtin.template:
     src: nginx-vhost-reverse-proxy.conf.j2
     dest: "/etc/nginx/sites-available/{{ item.server_name }}.conf"
-    mode: '0644'
+    mode: "0644"
   loop: "{{ nginx_vhosts }}"
   loop_control:
     label: "{{ item.server_name }}"
@@ -59,7 +59,7 @@
   ansible.builtin.systemd:
     name: nginx
     state: started
-    enabled: yes
+    enabled: true
 
 - name: Obtain Let's Encrypt certificates
   ansible.builtin.command: >
@@ -84,5 +84,5 @@
   ansible.builtin.systemd:
     name: certbot.timer
     state: started
-    enabled: yes
+    enabled: true
   when: nginx_ssl_enabled | bool

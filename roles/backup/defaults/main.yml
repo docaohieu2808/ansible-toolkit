@@ -12,14 +12,14 @@ restic_cache_dir: /var/cache/restic
 backup_backend: s3
 
 # S3 settings
-backup_s3_bucket: ""         # e.g. s3:s3.amazonaws.com/my-backup-bucket
-backup_s3_access_key: ""     # Set in vault
-backup_s3_secret_key: ""     # Set in vault
+backup_s3_bucket: "" # e.g. s3:s3.amazonaws.com/my-backup-bucket
+backup_s3_access_key: "" # Set in vault
+backup_s3_secret_key: "" # Set in vault
 backup_s3_region: "ap-southeast-1"
 
 # GCS settings (when backup_backend == gs)
-backup_gcs_bucket: ""        # e.g. gs:my-gcs-bucket
-backup_gcs_credentials: ""   # Path to service account JSON, set in vault
+backup_gcs_bucket: "" # e.g. gs:my-gcs-bucket
+backup_gcs_credentials: "" # Path to service account JSON, set in vault
 
 # Restic repository password - MUST set in vault
 backup_restic_password: ""
@@ -42,7 +42,7 @@ backup_keep_weekly: 4
 backup_keep_monthly: 3
 
 # Schedule (systemd timer OnCalendar format)
-backup_schedule: "02:30"   # daily at 02:30
+backup_schedule: "02:30" # daily at 02:30
 
 # Notifications (optional)
 backup_notify_on_failure: false

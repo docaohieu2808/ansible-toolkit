@@ -1,0 +1,22 @@
+name: lint
+on:
+  push:
+  pull_request:
+jobs:
+  ansible:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: Install Ansible and collections
+        run: |
+          pip install "ansible-core>=2.17,<2.20" ansible-lint jmespath netaddr
+          ansible-galaxy collection install -r requirements.yml
+      - name: ansible-lint (production profile)
+        run: ansible-lint
+      - name: Playbook syntax
+        run: |
+          for p in playbooks/*.yml; do
+            ansible-playbook --syntax-check -i inventories/_examples/single-server.example.yml "$p"
+          done

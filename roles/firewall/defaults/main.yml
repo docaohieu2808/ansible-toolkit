@@ -3,15 +3,15 @@
 # =============================================================================
 
 ---
-firewall_backend: ufw          # ufw or iptables
+firewall_backend: ufw # ufw or iptables
 
 # UFW settings
 ufw_enabled: true
-ufw_reset_on_apply: false      # WARNING: resets all existing rules if true
+ufw_reset_on_apply: false # WARNING: resets all existing rules if true
 ufw_default_incoming: deny
 ufw_default_outgoing: allow
 ufw_default_routed: deny
-ufw_logging: "low"             # off, low, medium, high, full
+ufw_logging: "low" # off, low, medium, high, full
 
 # Base allowed ports (applied to all hosts)
 ufw_base_rules:
@@ -33,4 +33,4 @@ ufw_trusted_networks: []
 #   - "10.0.0.0/8"
 
 # Docker iptables integration (Docker bypasses UFW by default)
-ufw_docker_fix: true           # Apply Docker UFW fix
+ufw_docker_fix: true # Apply Docker UFW fix

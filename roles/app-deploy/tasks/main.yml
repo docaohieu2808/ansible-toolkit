@@ -14,7 +14,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
 
 - name: Copy .env file to app directory
   ansible.builtin.copy:
@@ -22,7 +22,7 @@
     dest: "{{ app_dir }}/.env"
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   when: app_env_file != ""
 
 - name: Write extra env vars into .env
@@ -30,8 +30,8 @@
     path: "{{ app_dir }}/.env"
     line: "{{ item.key }}={{ item.value }}"
     regexp: "^{{ item.key }}="
-    create: yes
-    mode: '0640'
+    create: true
+    mode: "0640"
   loop: "{{ app_env_vars | dict2items }}"
   when: app_env_vars | length > 0
   no_log: true

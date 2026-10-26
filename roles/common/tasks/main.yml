@@ -7,14 +7,14 @@
 ---
 - name: Update apt cache
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: true
     cache_valid_time: 3600
 
 - name: Upgrade packages
   ansible.builtin.apt:
     upgrade: safe
-    autoremove: yes
-    autoclean: yes
+    autoremove: true
+    autoclean: true
 
 - name: Install common packages
   ansible.builtin.apt:
@@ -32,7 +32,7 @@
 - name: Update /etc/hosts
   ansible.builtin.lineinfile:
     path: /etc/hosts
-    regexp: '^127\.0\.1\.1'
+    regexp: "^127\\.0\\.1\\.1"
     line: "127.0.1.1 {{ inventory_hostname }}"
     state: present
   tags:

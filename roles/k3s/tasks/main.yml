@@ -9,7 +9,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0755'
+    mode: "0755"
 
 - name: Deploy K3s config file
   ansible.builtin.template:
@@ -17,14 +17,14 @@
     dest: "{{ k3s_config_dir }}/config.yaml"
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
   when: k3s_role == 'server'
 
 - name: Download K3s install script
   ansible.builtin.get_url:
     url: https://get.k3s.io
     dest: /tmp/k3s-install.sh
-    mode: '0750'
+    mode: "0750"
 
 - name: Install K3s server (control plane)
   ansible.builtin.command: /tmp/k3s-install.sh
@@ -53,14 +53,14 @@
   ansible.builtin.systemd:
     name: k3s
     state: started
-    enabled: yes
+    enabled: true
   when: k3s_role == 'server'
 
 - name: Ensure K3s agent service is started and enabled
   ansible.builtin.systemd:
     name: k3s-agent
     state: started
-    enabled: yes
+    enabled: true
   when: k3s_role == 'agent'
 
 - name: Wait for K3s node to be ready
@@ -82,7 +82,7 @@
   ansible.builtin.fetch:
     src: /etc/rancher/k3s/k3s.yaml
     dest: "{{ k3s_local_kubeconfig_path }}"
-    flat: yes
+    flat: true
   when:
     - k3s_role == 'server'
     - k3s_copy_kubeconfig_to_local | bool

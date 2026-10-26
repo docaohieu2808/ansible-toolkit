@@ -12,7 +12,8 @@
   gather_facts: true
 
   vars:
-    docker_apt_repository: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+    docker_apt_repository: "deb [arch={{ ansible_architecture | replace('x86_64', 'amd64') | replace('aarch64', 'arm64') }}] https://download.docker.com/linux/ubuntu
+      {{ ansible_distribution_release }} stable"
     docker_users:
       - root
 
@@ -30,7 +31,7 @@
           - lsb-release
           - python3-pip
         state: present
-        update_cache: yes
+        update_cache: true
 
     # =========================================================================
     # Add Docker Repository
@@ -39,7 +40,7 @@
       ansible.builtin.file:
         path: /etc/apt/keyrings
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Add Docker GPG key
       ansible.builtin.apt_key:
@@ -57,7 +58,7 @@
     # =========================================================================
     - name: Update apt cache after adding Docker repo
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
 
     - name: Install Docker packages
       ansible.builtin.apt:
@@ -73,7 +74,7 @@
       ansible.builtin.systemd:
         name: docker
         state: started
-        enabled: yes
+        enabled: true
 
     # =========================================================================
     # Configure Docker Daemon
@@ -82,7 +83,7 @@
       ansible.builtin.file:
         path: /etc/docker
         state: directory
-        mode: '0755'
+        mode: "0755"
 
     - name: Configure Docker daemon
       ansible.builtin.copy:
@@ -104,7 +105,7 @@
             "userland-proxy": false
           }
         dest: /etc/docker/daemon.json
-        mode: '0644'
+        mode: "0644"
       notify: Restart Docker
 
     # =========================================================================
@@ -114,7 +115,7 @@
       ansible.builtin.user:
         name: "{{ item }}"
         groups: docker
-        append: yes
+        append: true
       loop: "{{ docker_users }}"
       when: docker_users is defined
 
@@ -139,7 +140,7 @@
       ansible.builtin.get_url:
         url: "https://github.com/docker/compose/releases/download/{{ docker_compose_version | default('v2.24.0') }}/docker-compose-linux-{{ ansible_architecture }}"
         dest: /usr/local/bin/docker-compose
-        mode: '0755'
+        mode: "0755"
       when: dc_standalone.rc != 0
 
     # =========================================================================

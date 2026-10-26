@@ -11,8 +11,8 @@ nginx_sites_dir: /etc/nginx/sites-enabled
 
 # SSL via certbot/Let's Encrypt
 nginx_ssl_enabled: true
-nginx_ssl_email: ""             # Required for certbot
-nginx_ssl_staging: false        # Set true for testing (avoids rate limits)
+nginx_ssl_email: "" # Required for certbot
+nginx_ssl_staging: false # Set true for testing (avoids rate limits)
 
 # Virtual hosts to configure
 nginx_vhosts: []

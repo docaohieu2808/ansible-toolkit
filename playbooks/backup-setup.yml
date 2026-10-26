@@ -24,8 +24,7 @@
       ansible.builtin.assert:
         that:
           - backup_restic_password is defined and backup_restic_password != ""
-          - (backup_s3_bucket is defined and backup_s3_bucket != "") or
-            (backup_gcs_bucket is defined and backup_gcs_bucket != "")
+          - (backup_s3_bucket is defined and backup_s3_bucket != "") or (backup_gcs_bucket is defined and backup_gcs_bucket != "")
         fail_msg: >
           Missing backup credentials. Set backup_restic_password and
           backup_s3_bucket (or backup_gcs_bucket) via ansible-vault.

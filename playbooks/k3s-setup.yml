@@ -21,7 +21,7 @@
   hosts: "{{ k3s_server_group | default(target_hosts | default('all')) }}"
   become: true
   gather_facts: true
-  serial: 1   # Install control plane nodes one at a time
+  serial: 1 # Install control plane nodes one at a time
 
   pre_tasks:
     - name: Validate k3s_token is set

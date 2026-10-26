@@ -5,16 +5,17 @@
 ---
 - name: Set architecture map fact
   ansible.builtin.set_fact:
-    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armv7'} [ansible_architecture] | default('amd64') }}"
+    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armv7'}[ansible_architecture] | default('amd64') }}"
 
 - name: Download restic binary
   ansible.builtin.get_url:
     url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_{{ _arch }}.bz2"
     dest: "/tmp/restic_{{ restic_version }}_{{ _arch }}.bz2"
-    mode: '0644'
+    mode: "0644"
 
 - name: Decompress restic binary
-  ansible.builtin.shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}_{{ _arch }}.bz2 && mv /tmp/restic_{{ restic_version }}_{{ _arch }} {{ restic_install_dir }}/restic && chmod 0755 {{ restic_install_dir }}/restic"
+  ansible.builtin.shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}_{{ _arch }}.bz2 && mv /tmp/restic_{{ restic_version }}_{{ _arch }} {{ restic_install_dir }}/restic
+    && chmod 0755 {{ restic_install_dir }}/restic"
   args:
     creates: "{{ restic_install_dir }}/restic"
 
@@ -24,7 +25,7 @@
     state: directory
     owner: root
     group: root
-    mode: '0700'
+    mode: "0700"
   loop:
     - "{{ restic_config_dir }}"
     - "{{ restic_cache_dir }}"
@@ -35,7 +36,7 @@
     dest: "{{ restic_config_dir }}/env"
     owner: root
     group: root
-    mode: '0600'
+    mode: "0600"
 
 - name: Deploy restic excludes file
   ansible.builtin.template:
@@ -43,7 +44,7 @@
     dest: "{{ restic_config_dir }}/excludes.txt"
     owner: root
     group: root
-    mode: '0640'
+    mode: "0640"
 
 - name: Initialize restic repository (idempotent)
   ansible.builtin.shell: |
@@ -59,25 +60,25 @@
     dest: /usr/local/bin/restic-backup
     owner: root
     group: root
-    mode: '0750'
+    mode: "0750"
 
 - name: Deploy restic backup systemd service unit
   ansible.builtin.template:
     src: restic-backup-systemd.service.j2
     dest: /etc/systemd/system/restic-backup.service
-    mode: '0644'
+    mode: "0644"
   notify: Reload systemd
 
 - name: Deploy restic backup systemd timer unit
   ansible.builtin.template:
     src: restic-backup-systemd.timer.j2
     dest: /etc/systemd/system/restic-backup.timer
-    mode: '0644'
+    mode: "0644"
   notify: Reload systemd
 
 - name: Enable and start restic backup timer
   ansible.builtin.systemd:
     name: restic-backup.timer
     state: started
-    enabled: yes
-    daemon_reload: yes
+    enabled: true
+    daemon_reload: true
