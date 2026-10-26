@@ -1,0 +1,10 @@
+---
+- name: Prepare a user that the role must remove (once, so idempotence stays meaningful)
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Create olduser
+      ansible.builtin.user:
+        name: olduser
+        create_home: true

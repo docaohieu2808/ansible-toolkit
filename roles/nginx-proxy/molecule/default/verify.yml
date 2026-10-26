@@ -13,16 +13,23 @@
       ansible.builtin.stat:
         path: /etc/nginx/sites-enabled/default
       register: default_site
-      failed_when: default_site.stat.exists
+
+    - name: Assert the default site is gone
+      ansible.builtin.assert:
+        that: not default_site.stat.exists
 
     - name: Vhosts are enabled as symlinks to sites-available
       ansible.builtin.stat:
         path: "/etc/nginx/sites-enabled/{{ item }}.conf"
       loop: [app.example.test, dead.example.test]
       register: enabled_sites
-      failed_when: not item.stat.islnk
+
+    - name: Assert both enabled vhosts are symlinks
+      ansible.builtin.assert:
+        that: item.stat.islnk
+      loop: "{{ enabled_sites.results }}"
       loop_control:
-        label: "{{ item }}"
+        label: "{{ item.item }}"
 
     - name: Request the proxied vhost through nginx
       ansible.builtin.command: curl -sS -i --header "Host:app.example.test" http://127.0.0.1/upstream-index.txt

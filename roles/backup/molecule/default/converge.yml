@@ -18,6 +18,12 @@
       - "*.tmp"
 
   pre_tasks:
+    - name: Create the source directory
+      ansible.builtin.file:
+        path: /srv/backup-source
+        state: directory
+        mode: "0755"
+
     - name: Create data to back up
       ansible.builtin.copy:
         content: "{{ item.content }}\n"

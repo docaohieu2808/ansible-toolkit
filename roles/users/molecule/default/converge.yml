@@ -28,10 +28,5 @@
         state: present
         update_cache: true
 
-    - name: Create a user that the role must remove
-      ansible.builtin.user:
-        name: olduser
-        create_home: true
-
   roles:
     - role: users

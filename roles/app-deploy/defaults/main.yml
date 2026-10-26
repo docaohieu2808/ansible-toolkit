@@ -11,7 +11,7 @@ app_dir: "{{ app_base_dir }}/{{ app_name }}"
 # Docker Compose
 app_compose_file: docker-compose.yml
 app_compose_pull: true # Pull latest images before up
-app_compose_recreate: smart # always | never | smart
+app_compose_recreate: auto # always | never | auto (community.docker compose v2 has no "smart")
 
 # Environment file
 app_env_file: "" # Path to .env file on control node to copy
