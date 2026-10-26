@@ -5,19 +5,35 @@
 ---
 - name: Set architecture map fact
   ansible.builtin.set_fact:
-    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'armv7'}[ansible_architecture] | default('amd64') }}"
+    _arch: "{{ {'x86_64': 'amd64', 'aarch64': 'arm64', 'armv7l': 'arm'}[ansible_architecture] | default('amd64') }}"
 
-- name: Download restic binary
+- name: Install bzip2 (needed to unpack the restic release)
+  ansible.builtin.apt:
+    name: bzip2
+    state: present
+    update_cache: true
+
+- name: Download restic binary (checksum verified)
   ansible.builtin.get_url:
     url: "https://github.com/restic/restic/releases/download/v{{ restic_version }}/restic_{{ restic_version }}_linux_{{ _arch }}.bz2"
     dest: "/tmp/restic_{{ restic_version }}_{{ _arch }}.bz2"
+    checksum: "sha256:https://github.com/restic/restic/releases/download/v{{ restic_version }}/SHA256SUMS"
     mode: "0644"
 
+# The binary is installed under a versioned name and symlinked, so changing
+# restic_version really upgrades the installed binary.
 - name: Decompress restic binary
-  ansible.builtin.shell: "bzip2 -d -f /tmp/restic_{{ restic_version }}_{{ _arch }}.bz2 && mv /tmp/restic_{{ restic_version }}_{{ _arch }} {{ restic_install_dir }}/restic
-    && chmod 0755 {{ restic_install_dir }}/restic"
+  ansible.builtin.shell: "bzip2 -dc /tmp/restic_{{ restic_version }}_{{ _arch }}.bz2 > {{ restic_install_dir }}/restic-{{ restic_version }}
+    && chmod 0755 {{ restic_install_dir }}/restic-{{ restic_version }}"
   args:
-    creates: "{{ restic_install_dir }}/restic"
+    creates: "{{ restic_install_dir }}/restic-{{ restic_version }}"
+
+- name: Link restic to the pinned version
+  ansible.builtin.file:
+    src: "{{ restic_install_dir }}/restic-{{ restic_version }}"
+    dest: "{{ restic_install_dir }}/restic"
+    state: link
+    force: true
 
 - name: Create restic config and cache directories
   ansible.builtin.file:

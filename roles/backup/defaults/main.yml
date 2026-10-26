@@ -3,7 +3,7 @@
 # =============================================================================
 
 ---
-restic_version: "0.16.4"
+restic_version: "0.19.1"
 restic_install_dir: /usr/local/bin
 restic_config_dir: /etc/restic
 restic_cache_dir: /var/cache/restic

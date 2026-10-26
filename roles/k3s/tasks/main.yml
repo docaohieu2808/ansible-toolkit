@@ -20,32 +20,56 @@
     mode: "0640"
   when: k3s_role == 'server'
 
-- name: Download K3s install script
+- name: Set k3s release asset names for this architecture
+  ansible.builtin.set_fact:
+    _k3s_asset: "{{ {'x86_64': 'k3s', 'aarch64': 'k3s-arm64', 'armv7l': 'k3s-armhf'}[ansible_architecture] }}"
+    _k3s_sums: "{{ {'x86_64': 'sha256sum-amd64.txt', 'aarch64': 'sha256sum-arm64.txt', 'armv7l': 'sha256sum-arm.txt'}[ansible_architecture] }}"
+
+# The binary is downloaded here (not by the install script) so it can be
+# verified against the checksum file published with the release.
+- name: Download K3s binary (checksum verified)
   ansible.builtin.get_url:
-    url: https://get.k3s.io
+    url: "https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | urlencode }}/{{ _k3s_asset }}"
+    dest: "{{ k3s_install_dir }}/k3s"
+    checksum: "sha256:https://github.com/k3s-io/k3s/releases/download/{{ k3s_version | urlencode }}/{{ _k3s_sums }}"
+    owner: root
+    group: root
+    mode: "0755"
+  notify: "{{ 'Restart K3s' if k3s_role == 'server' else 'Restart K3s agent' }}"
+
+# Script taken from the tag matching the binary, pinned by sha256.
+# When bumping k3s_version also bump k3s_install_script_sha256.
+- name: Download K3s install script (pinned sha256)
+  ansible.builtin.get_url:
+    url: "https://raw.githubusercontent.com/k3s-io/k3s/{{ k3s_version | urlencode }}/install.sh"
     dest: /tmp/k3s-install.sh
+    checksum: "sha256:{{ k3s_install_script_sha256 }}"
     mode: "0750"
 
 - name: Install K3s server (control plane)
   ansible.builtin.command: /tmp/k3s-install.sh
   environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_BIN_DIR: "{{ k3s_install_dir }}"
     K3S_TOKEN: "{{ k3s_token }}"
     INSTALL_K3S_EXEC: "server"
   args:
-    creates: "{{ k3s_install_dir }}/k3s"
+    creates: /etc/systemd/system/k3s.service
+  no_log: true
   when: k3s_role == 'server'
   notify: Restart K3s
 
 - name: Install K3s agent (worker node)
   ansible.builtin.command: /tmp/k3s-install.sh
   environment:
-    INSTALL_K3S_VERSION: "{{ k3s_version }}"
+    INSTALL_K3S_SKIP_DOWNLOAD: "true"
+    INSTALL_K3S_BIN_DIR: "{{ k3s_install_dir }}"
     K3S_TOKEN: "{{ k3s_token }}"
     K3S_URL: "{{ k3s_server_url }}"
     INSTALL_K3S_EXEC: "agent"
   args:
-    creates: "{{ k3s_install_dir }}/k3s"
+    creates: /etc/systemd/system/k3s-agent.service
+  no_log: true
   when: k3s_role == 'agent'
   notify: Restart K3s agent
 

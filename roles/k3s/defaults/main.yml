@@ -3,7 +3,9 @@
 # =============================================================================
 
 ---
-k3s_version: "v1.29.2+k3s1"
+k3s_version: "v1.37.1+k3s1"
+# sha256 of install.sh at the k3s_version tag (see roles/k3s/tasks/main.yml)
+k3s_install_script_sha256: "ed01f89fd977bf20ac1516bbebf8370bf3ddbaa55dac8aba610956a4c78cc00b"
 k3s_install_dir: /usr/local/bin
 k3s_config_dir: /etc/rancher/k3s
 k3s_data_dir: /var/lib/rancher/k3s
