@@ -14,6 +14,7 @@
       - gnupg
       - lsb-release
       - python3-debian # required by ansible.builtin.deb822_repository
+      - python3-requests # required by community.docker modules (docker_network below)
     state: present
     update_cache: true
 
