@@ -41,9 +41,9 @@
         that:
           - proxied.stdout is search('HTTP/1.1 200')
           - proxied.stdout is search('upstream-ok')
-          - proxied.stdout is search('(?i)x-frame-options: SAMEORIGIN')
-          - proxied.stdout is search('(?i)x-content-type-options: nosniff')
-          - proxied.stdout is search('(?i)x-molecule: extra-directive')
+          - "proxied.stdout is search('(?i)x-frame-options: SAMEORIGIN')"
+          - "proxied.stdout is search('(?i)x-content-type-options: nosniff')"
+          - "proxied.stdout is search('(?i)x-molecule: extra-directive')"
 
     - name: Request the vhost whose upstream is dead
       ansible.builtin.command: curl -sS -o /dev/null -w '%{http_code}' --header "Host:dead.example.test" http://127.0.0.1/

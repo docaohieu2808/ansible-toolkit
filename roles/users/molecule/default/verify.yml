@@ -15,7 +15,7 @@
           - "'alice' in ansible_facts.getent_passwd"
           - "'bob' in ansible_facts.getent_passwd"
           - "'olduser' not in ansible_facts.getent_passwd"
-          - ansible_facts.getent_passwd.alice[4] == 'Admin with sudo'
+          - ansible_facts.getent_passwd.alice[3] == 'Admin with sudo'
 
     - name: Assert olduser home was removed
       ansible.builtin.stat:
