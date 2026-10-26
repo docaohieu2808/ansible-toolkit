@@ -1,0 +1,46 @@
+---
+- name: Verify app-deploy role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: .env was written with the variable and restrictive mode
+      ansible.builtin.stat:
+        path: /opt/apps/whoami/.env
+      register: env_stat
+      failed_when: env_stat.stat.mode != '0640'
+
+    - name: .env content
+      ansible.builtin.slurp:
+        src: /opt/apps/whoami/.env
+      register: env_content
+
+    - name: Assert the variable landed in .env exactly once
+      ansible.builtin.assert:
+        that:
+          - (env_content.content | b64decode).splitlines() | select('equalto', 'GREETING=hello-from-molecule') | list | length == 1
+
+    - name: Ask compose for running services
+      ansible.builtin.command: docker compose -f /opt/apps/whoami/docker-compose.yml ps --format json --status running
+      register: compose_ps
+      changed_when: false
+
+    - name: Assert the web service is running
+      ansible.builtin.assert:
+        that: "'whoami' in compose_ps.stdout and 'traefik/whoami:v1.11.0' in compose_ps.stdout"
+
+    - name: Container environment as seen by Docker
+      ansible.builtin.shell: docker inspect "$(docker compose -f /opt/apps/whoami/docker-compose.yml ps -q web)" --format '{{ '{{' }}json .Config.Env{{ '}}' }}'
+      args:
+        executable: /bin/bash
+      register: container_env
+      changed_when: false
+      failed_when: "'GREETING=hello-from-molecule' not in container_env.stdout"
+
+    - name: The published port answers with the app output
+      ansible.builtin.uri:
+        url: http://127.0.0.1:18080/
+        return_content: true
+      register: app_answer
+      failed_when: "'Hostname:' not in app_answer.content"

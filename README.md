@@ -126,8 +126,25 @@ and runners) and on demand:
 
 - `ansible-lint` with the `production` profile
 - `ansible-playbook --syntax-check` on every playbook
-- `molecule` converge + idempotence + verify of the `common`, `docker` and `monitoring`
-  roles in a privileged systemd container (Debian 12) on the GitHub-hosted runner
+- `molecule test` (converge, idempotence, verify) per role in a privileged systemd
+  container (Debian 12) on the GitHub-hosted runner, one matrix job per role:
+
+  | Role | What verify proves |
+  |------|--------------------|
+  | `common` | timezone, packages |
+  | `docker` | engine installed, daemon config, service running |
+  | `monitoring` | node_exporter and Alloy running, metrics served |
+  | `firewall` | UFW active with the right default policies; the rule set parsed from `ufw status numbered` equals exactly 22/80/443 plus the source-restricted 9100 (no substring match, so 2222 or 8080 would fail); rules present in the kernel chain. Runs in a privileged container with `NET_ADMIN`, using the runner kernel's netfilter |
+  | `users` | accounts, groups, exact authorized_keys, `.ssh` mode, sudoers files + `visudo -c`, real `sudo -n` allowed/denied, locked passwords, removed user |
+  | `nginx-proxy` | `nginx -t`, vhost symlinks, a real proxied request through nginx (body + security headers + extra directive), 502 for a dead upstream (no certbot/Let's Encrypt: needs public DNS) |
+  | `security` | UFW rule set exact, fail2ban sshd jail live with configured limits, unattended-upgrades config |
+  | `backup` | pinned restic installed, a real backup via the installed script into a local restic repository, excludes honoured, restore matches. S3/GCS backends are not exercised |
+  | `app-deploy` | `.env` written, compose project actually up (docker-in-docker), published port answers |
+
+- Not behaviour-tested: `k3s` and `wireguard` (need a kernel/cluster that a container
+  cannot honestly provide) and the playbooks, which are only `--syntax-check`ed against the
+  example inventory (syntax-check cannot catch a wrong group name). Molecule files are
+  excluded from `ansible-lint`.
 
 Run the same locally with `ansible-lint` and `cd roles/<role> && molecule test`.
 

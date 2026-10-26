@@ -1,0 +1,31 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    # restic accepts a plain directory as repository, so the whole role (download with
+    # checksum, repo init, backup script, systemd units) runs for real without any cloud.
+    backup_backend: s3
+    backup_s3_bucket: /var/lib/restic-test-repo
+    backup_s3_access_key: unused-local-repo
+    backup_s3_secret_key: unused-local-repo
+    backup_restic_password: molecule-only-password
+    backup_sources:
+      - /srv/backup-source
+    backup_excludes:
+      - "*.tmp"
+
+  pre_tasks:
+    - name: Create data to back up
+      ansible.builtin.copy:
+        content: "{{ item.content }}\n"
+        dest: "/srv/backup-source/{{ item.name }}"
+        mode: "0644"
+      loop:
+        - { name: keep.txt, content: "important data" }
+        - { name: skip.tmp, content: "must be excluded" }
+
+  roles:
+    - role: backup

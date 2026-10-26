@@ -1,0 +1,52 @@
+---
+- name: Verify security role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Read numbered ufw rule table
+      ansible.builtin.command: ufw status numbered
+      register: ufw_numbered
+      changed_when: false
+
+    - name: Parse IPv4 allow rules into "<to> <from>" pairs
+      ansible.builtin.set_fact:
+        ufw_v4_rules: >-
+          {{ ufw_numbered.stdout
+             | regex_findall('\[\s*\d+\]\s+(\S+)\s+ALLOW IN\s+(\S+)')
+             | map('join', ' ') | sort | list }}
+
+    - name: Assert ufw is active and the allowed set is exactly SSH/HTTP/HTTPS plus the docker range
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_numbered.stdout"
+          - ufw_v4_rules == ['22/tcp Anywhere', '443/tcp Anywhere', '80/tcp Anywhere', 'Anywhere 172.16.0.0/12']
+        fail_msg: "unexpected ufw rules: {{ ufw_v4_rules }}"
+
+    - name: Fail2ban service is active
+      ansible.builtin.command: systemctl is-active fail2ban
+      register: f2b_active
+      changed_when: false
+      failed_when: f2b_active.stdout != 'active'
+
+    - name: Fail2ban sshd jail is running with the configured limits
+      ansible.builtin.command: "fail2ban-client get sshd {{ item.key }}"
+      register: f2b_get
+      changed_when: false
+      failed_when: f2b_get.stdout.strip() != item.value
+      loop:
+        - { key: maxretry, value: "5" }
+        - { key: bantime, value: "3600" }
+        - { key: findtime, value: "600" }
+
+    - name: Read unattended-upgrades periodic config
+      ansible.builtin.slurp:
+        src: /etc/apt/apt.conf.d/20auto-upgrades
+      register: auto_upgrades
+
+    - name: Assert automatic upgrades are enabled
+      ansible.builtin.assert:
+        that:
+          - (auto_upgrades.content | b64decode) is search('Unattended-Upgrade "1"')
+          - (auto_upgrades.content | b64decode) is search('Update-Package-Lists "1"')

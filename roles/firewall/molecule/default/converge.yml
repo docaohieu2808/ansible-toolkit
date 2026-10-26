@@ -15,7 +15,8 @@
       - { port: "22", proto: tcp, comment: "SSH" }
       - { port: "80", proto: tcp, comment: "HTTP" }
       - { port: "443", proto: tcp, comment: "HTTPS" }
-    ufw_extra_rules: []
+    ufw_extra_rules:
+      - { port: "9100", proto: tcp, src: "10.0.0.0/8", comment: "node_exporter" }
     ufw_trusted_networks: []
     ufw_docker_fix: false
 

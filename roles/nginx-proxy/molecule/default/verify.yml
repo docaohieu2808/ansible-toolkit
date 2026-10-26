@@ -1,0 +1,52 @@
+---
+- name: Verify nginx-proxy role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Full nginx config test
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Default site is removed
+      ansible.builtin.stat:
+        path: /etc/nginx/sites-enabled/default
+      register: default_site
+      failed_when: default_site.stat.exists
+
+    - name: Vhosts are enabled as symlinks to sites-available
+      ansible.builtin.stat:
+        path: "/etc/nginx/sites-enabled/{{ item }}.conf"
+      loop: [app.example.test, dead.example.test]
+      register: enabled_sites
+      failed_when: not item.stat.islnk
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Request the proxied vhost through nginx
+      ansible.builtin.command: curl -sS -i --header "Host:app.example.test" http://127.0.0.1/upstream-index.txt
+      register: proxied
+      changed_when: false
+
+    - name: Assert upstream body, security headers and extra directive
+      ansible.builtin.assert:
+        that:
+          - proxied.stdout is search('HTTP/1.1 200')
+          - proxied.stdout is search('upstream-ok')
+          - proxied.stdout is search('(?i)x-frame-options: SAMEORIGIN')
+          - proxied.stdout is search('(?i)x-content-type-options: nosniff')
+          - proxied.stdout is search('(?i)x-molecule: extra-directive')
+
+    - name: Request the vhost whose upstream is dead
+      ansible.builtin.command: curl -sS -o /dev/null -w '%{http_code}' --header "Host:dead.example.test" http://127.0.0.1/
+      register: dead
+      changed_when: false
+
+    - name: Assert nginx answers 502 for a dead upstream
+      ansible.builtin.assert:
+        that: dead.stdout == '502'
+
+    - name: Nginx is enabled and active under systemd
+      ansible.builtin.command: systemctl is-enabled --quiet nginx
+      changed_when: false

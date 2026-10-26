@@ -1,0 +1,110 @@
+---
+- name: Verify users role
+  hosts: all
+  gather_facts: true
+  become: true
+
+  tasks:
+    - name: Read account facts
+      ansible.builtin.getent:
+        database: passwd
+
+    - name: Assert alice and bob exist and olduser is gone
+      ansible.builtin.assert:
+        that:
+          - "'alice' in ansible_facts.getent_passwd"
+          - "'bob' in ansible_facts.getent_passwd"
+          - "'olduser' not in ansible_facts.getent_passwd"
+          - ansible_facts.getent_passwd.alice[4] == 'Admin with sudo'
+
+    - name: Assert olduser home was removed
+      ansible.builtin.stat:
+        path: /home/olduser
+      register: olduser_home
+      failed_when: olduser_home.stat.exists
+
+    - name: Read alice groups
+      ansible.builtin.command: id -nG alice
+      register: alice_groups
+      changed_when: false
+
+    - name: Read bob groups
+      ansible.builtin.command: id -nG bob
+      register: bob_groups
+      changed_when: false
+
+    - name: Assert alice is in sudo and bob is not
+      ansible.builtin.assert:
+        that:
+          - "'sudo' in alice_groups.stdout.split()"
+          - "'sudo' not in bob_groups.stdout.split()"
+
+    - name: Read authorized_keys
+      ansible.builtin.slurp:
+        src: "/home/{{ item }}/.ssh/authorized_keys"
+      loop: [alice, bob]
+      register: auth_keys
+
+    - name: Assert exact key lines per user
+      ansible.builtin.assert:
+        that:
+          - (auth_keys.results[0].content | b64decode).splitlines() | select('search', 'ssh-ed25519') | list | length == 2
+          - "'ci-fixture@example.invalid' in (auth_keys.results[0].content | b64decode)"
+          - (auth_keys.results[1].content | b64decode).splitlines() | select('search', 'ssh-ed25519') | list | length == 1
+          - "'ci-fixture@example.invalid' not in (auth_keys.results[1].content | b64decode)"
+
+    - name: Check .ssh directory permissions
+      ansible.builtin.stat:
+        path: "/home/{{ item }}/.ssh"
+      loop: [alice, bob]
+      register: ssh_dirs
+
+    - name: Assert .ssh is 0700 and owned by the user
+      ansible.builtin.assert:
+        that:
+          - item.stat.mode == '0700'
+          - item.stat.pw_name == item.item
+      loop: "{{ ssh_dirs.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check sudoers files
+      ansible.builtin.stat:
+        path: "/etc/sudoers.d/{{ item }}"
+      loop: [alice, bob]
+      register: sudoers_files
+
+    - name: Assert sudoers file exists only for alice with mode 0440
+      ansible.builtin.assert:
+        that:
+          - sudoers_files.results[0].stat.exists
+          - sudoers_files.results[0].stat.mode == '0440'
+          - not sudoers_files.results[1].stat.exists
+
+    - name: Validate the whole sudoers configuration
+      ansible.builtin.command: visudo -c
+      changed_when: false
+
+    - name: Alice can sudo without a password
+      ansible.builtin.command: su -s /bin/bash alice -c 'sudo -n true'
+      changed_when: false
+
+    - name: Bob cannot sudo
+      ansible.builtin.command: su -s /bin/bash bob -c 'sudo -n true'
+      register: bob_sudo
+      changed_when: false
+      failed_when: bob_sudo.rc == 0
+
+    - name: Read password status
+      ansible.builtin.command: "passwd -S {{ item }}"
+      loop: [alice, bob]
+      register: pw_status
+      changed_when: false
+
+    - name: Assert both accounts have a locked password (key-only login)
+      ansible.builtin.assert:
+        that: item.stdout.split()[1] == 'L'
+        fail_msg: "{{ item.stdout }}"
+      loop: "{{ pw_status.results }}"
+      loop_control:
+        label: "{{ item.item }}"

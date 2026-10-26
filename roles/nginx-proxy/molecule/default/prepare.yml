@@ -1,0 +1,23 @@
+---
+- name: Prepare a tiny upstream for nginx to proxy to
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Create upstream document root
+      ansible.builtin.copy:
+        content: "upstream-ok\n"
+        dest: /srv/upstream-index.txt
+        mode: "0644"
+
+    - name: Run a throwaway upstream on 127.0.0.1:8081
+      ansible.builtin.command: >
+        systemd-run --unit=molecule-upstream --property=WorkingDirectory=/srv
+        python3 -m http.server 8081 --bind 127.0.0.1
+      changed_when: true
+
+    - name: Install curl for the verify step
+      ansible.builtin.apt:
+        name: curl
+        state: present
+        update_cache: true

@@ -5,36 +5,49 @@
   become: true
 
   tasks:
-    - name: Check ufw is installed
-      package_facts:
-        manager: apt
-
-    - name: Assert ufw package is present
-      assert:
-        that: "'ufw' in ansible_facts.packages"
-        fail_msg: "ufw is not installed"
-
-    - name: Check ufw status
-      command: ufw status
-      register: ufw_status
+    - name: Read numbered ufw rule table
+      ansible.builtin.command: ufw status numbered
+      register: ufw_numbered
       changed_when: false
 
-    - name: Assert ufw is active
-      assert:
-        that: "'Status: active' in ufw_status.stdout"
-        fail_msg: "UFW is not active"
+    - name: Read verbose ufw status (default policies)
+      ansible.builtin.command: ufw status verbose
+      register: ufw_verbose
+      changed_when: false
 
-    - name: Check SSH port 22 is allowed in ufw rules
-      assert:
-        that: "'22' in ufw_status.stdout"
-        fail_msg: "SSH port 22 is not open in UFW"
+    - name: Parse IPv4 allow rules into "<to> <from>" pairs
+      # IPv6 twins carry "(v6)" between the columns and are not matched on purpose
+      ansible.builtin.set_fact:
+        ufw_v4_rules: >-
+          {{ ufw_numbered.stdout
+             | regex_findall('\[\s*\d+\]\s+(\S+)\s+ALLOW IN\s+(\S+)')
+             | map('join', ' ') | sort | list }}
 
-    - name: Check HTTP port 80 is allowed in ufw rules
-      assert:
-        that: "'80' in ufw_status.stdout"
-        fail_msg: "HTTP port 80 is not open in UFW"
+    - name: Assert ufw is active with the expected default policies
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in ufw_verbose.stdout"
+          - "'Default: deny (incoming), allow (outgoing), deny (routed)' in ufw_verbose.stdout"
+        fail_msg: "{{ ufw_verbose.stdout }}"
 
-    - name: Check HTTPS port 443 is allowed in ufw rules
-      assert:
-        that: "'443' in ufw_status.stdout"
-        fail_msg: "HTTPS port 443 is not open in UFW"
+    - name: Assert the allowed rule set is exactly the configured one
+      # Exact equality: 2222/tcp, 8080/tcp or 4430/tcp would make this fail
+      ansible.builtin.assert:
+        that:
+          - ufw_v4_rules == ['22/tcp Anywhere', '443/tcp Anywhere', '80/tcp Anywhere', '9100/tcp 10.0.0.0/8']
+        fail_msg: "unexpected ufw rules: {{ ufw_v4_rules }}"
+
+    - name: Assert nothing is open to the world beyond SSH, HTTP and HTTPS
+      ansible.builtin.assert:
+        that:
+          - ufw_v4_rules | select('search', ' Anywhere$') | map('regex_replace', ' Anywhere$', '') | sort | list == ['22/tcp', '443/tcp', '80/tcp']
+        fail_msg: "{{ ufw_v4_rules }}"
+
+    - name: Assert the kernel really has the rules loaded (ufw-user-input chain)
+      ansible.builtin.command: iptables -S ufw-user-input
+      register: ufw_chain
+      changed_when: false
+      failed_when: >-
+        ufw_chain.stdout is not search('--dport 22 .*-j ACCEPT')
+        or ufw_chain.stdout is not search('--dport 9100 .*-j ACCEPT')
+        or ufw_chain.stdout is search('--dport (2222|8080|4430) ')

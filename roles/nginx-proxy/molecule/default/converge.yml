@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    nginx_ssl_enabled: false
+    nginx_vhosts:
+      - server_name: app.example.test
+        upstream_host: 127.0.0.1
+        upstream_port: 8081
+        extra_directives: "add_header X-Molecule \"extra-directive\" always;"
+      - server_name: dead.example.test
+        upstream_host: 127.0.0.1
+        upstream_port: 9
+
+  roles:
+    - role: nginx-proxy

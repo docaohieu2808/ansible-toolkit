@@ -1,0 +1,37 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    users_list:
+      - name: alice
+        comment: "Admin with sudo"
+        groups: [sudo]
+        sudo: true
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIDnv6JxJhbewoKfslWXcZhcNKzByEyN3H704+2PC7ePI ci-fixture@example.invalid"
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBHgfsSf3+67I+4ogwf844xBpFOhdWRtoY1Z4K9nrJF ci-fixture2@example.invalid"
+      - name: bob
+        comment: "Key-only, no sudo"
+        sudo: false
+        ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGBHgfsSf3+67I+4ogwf844xBpFOhdWRtoY1Z4K9nrJF ci-fixture2@example.invalid"
+    users_remove:
+      - olduser
+
+  pre_tasks:
+    - name: Install sudo (provides the sudo group and visudo)
+      ansible.builtin.apt:
+        name: sudo
+        state: present
+        update_cache: true
+
+    - name: Create a user that the role must remove
+      ansible.builtin.user:
+        name: olduser
+        create_home: true
+
+  roles:
+    - role: users

@@ -1,0 +1,42 @@
+---
+- name: Converge
+  hosts: all
+  gather_facts: true
+  become: true
+
+  vars:
+    docker_users:
+      - root
+    docker_daemon_config:
+      storage-driver: overlay2
+      log-driver: json-file
+      live-restore: false
+    app_name: whoami
+    app_healthcheck_url: http://127.0.0.1:18080/
+    app_healthcheck_retries: 12
+    app_healthcheck_delay: 5
+    app_env_vars:
+      GREETING: hello-from-molecule
+
+  pre_tasks:
+    - name: Create application directory ahead of the compose file
+      ansible.builtin.file:
+        path: /opt/apps/whoami
+        state: directory
+        mode: "0755"
+
+    - name: Place a minimal compose file
+      ansible.builtin.copy:
+        dest: /opt/apps/whoami/docker-compose.yml
+        mode: "0644"
+        content: |
+          services:
+            web:
+              image: traefik/whoami:v1.11.0
+              ports:
+                - "127.0.0.1:18080:80"
+              env_file: .env
+
+  roles:
+    - role: docker
+    - role: app-deploy

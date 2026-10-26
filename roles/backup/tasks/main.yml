@@ -67,6 +67,8 @@
     set -a; source {{ restic_config_dir }}/env; set +a
     restic --cache-dir {{ restic_cache_dir }} snapshots 2>/dev/null || \
     restic --cache-dir {{ restic_cache_dir }} init
+  args:
+    executable: /bin/bash
   register: restic_init
   changed_when: "'created restic repository' in restic_init.stdout"
 
